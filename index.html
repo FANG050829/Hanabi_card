@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f8f7f3">
+  <meta name="description" content="花火贺卡：为想念的人，做一张清爽的小贺卡。纯前端、无后端，链接即贺卡。">
+  <title>花火贺卡 · 制作你的祝福</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23d8b46a'/%3E%3Ctext x='50' y='70' font-size='58' text-anchor='middle' fill='%23191408' font-family='serif' font-weight='700'%3E%E8%8A%B1%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="editor-page">
+  <!-- 背景层：纸白底 + 极淡噪点 -->
+  <div class="bg" aria-hidden="true"></div>
+  <div class="noise" aria-hidden="true"></div>
+
+  <!-- 左侧竖排字标（宽屏显示） -->
+  <aside class="rail" aria-hidden="true">
+    <span class="rail-brand">花火贺卡</span>
+    <span class="rail-meta">HANABI — EST. 2026</span>
+  </aside>
+
+  <div class="page">
+    <header class="site-head">
+      <div class="brand">
+        <div class="brand-row">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 12 L12 3.5 M12 12 L18.2 6.8 M12 12 L20.5 12 M12 12 L18.2 17.2 M12 12 L12 20.5 M12 12 L5.8 17.2 M12 12 L3.5 12 M12 12 L5.8 6.8"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" pathLength="100"/>
+              <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+            </svg>
+          </span>
+          <h1>花火贺卡</h1>
+        </div>
+        <p>为想念的人，做一张清爽的小贺卡</p>
+      </div>
+      <nav class="head-actions">
+        <button class="btn btn-text" id="clearBtn" type="button" title="清空所有内容，从头开始">清空重填</button>
+        <button class="btn btn-text" id="luckyBtn" type="button" title="随机换一套场景与样式">来点手气</button>
+        <a class="btn btn-text" href="https://github.com/FANG050829/Hanabi" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main class="editor-main">
+      <!-- 导航栏：每个页签一个功能 -->
+      <nav class="tabs" id="tabs" role="tablist" aria-label="制作步骤">
+        <button class="tab p-active" data-tab="tpl" role="tab" aria-selected="true"><i class="tab-no">01</i>灵感</button>
+        <button class="tab" data-tab="write" role="tab" aria-selected="false"><i class="tab-no">02</i>内容</button>
+        <button class="tab" data-tab="style" role="tab" aria-selected="false"><i class="tab-no">03</i>样式</button>
+        <button class="tab" data-tab="letter" role="tab" aria-selected="false"><i class="tab-no">04</i>信笺</button>
+        <button class="tab" data-tab="send" role="tab" aria-selected="false"><i class="tab-no">05</i>寄出</button>
+      </nav>
+
+      <div class="editor-cols">
+        <div class="tab-panes">
+          <!-- 01 灵感：一键套用成品 -->
+          <section class="pane p-active" data-pane="tpl" aria-label="灵感模板">
+            <div class="pane-head">
+              <h3>灵感样式</h3>
+              <p>七套成品一键套用，套用后到「内容」「样式」页微调</p>
+            </div>
+            <div class="tpl-grid" id="templateStrip"></div>
+          </section>
+
+          <!-- 02 内容：写给谁、写什么 -->
+          <section class="pane" data-pane="write" aria-label="内容编辑">
+            <div class="pane-head">
+              <h3>内容</h3>
+              <p>祝福语的每一个字，都替你送达到位</p>
+            </div>
+            <div class="field">
+              <label for="fTo">送谁</label>
+              <input type="text" id="fTo" maxlength="16" placeholder="亲爱的朋友" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fTitle">卡面标题</label>
+              <input type="text" id="fTitle" maxlength="24" placeholder="生日快乐" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fMessage">想说的话 <span class="count" id="msgCount">0/500</span></label>
+              <textarea id="fMessage" maxlength="500" rows="4" placeholder="写下你的祝福，支持换行"></textarea>
+            </div>
+            <div class="msg-tools">
+              <button class="btn btn-text btn-sm" id="blessBtn" type="button" title="从本地灵感库组合一句祝福">帮你起两句</button>
+              <button class="btn btn-text btn-sm" id="pageBreakBtn" type="button" title="在光标处插入分页符，收卡人轻触翻页">插入分页</button>
+              <span class="tip-inline">单独一行「---」= 翻页</span>
+            </div>
+            <div class="field">
+              <label for="fFrom">署名</label>
+              <input type="text" id="fFrom" maxlength="16" placeholder="惦记你的人" autocomplete="off">
+            </div>
+
+            <div class="sub-label">照片 <span class="sub-tip">可选，压到一张拍立得里随卡寄出</span></div>
+            <div class="music-block">
+              <input type="file" id="photoFile" accept="image/*" hidden>
+              <button class="btn btn-ghost btn-sm" id="photoUp" type="button">选一张照片</button>
+              <button class="btn btn-ghost btn-sm" id="photoDel" type="button" hidden>移除</button>
+              <img id="photoThumb" class="photo-thumb" alt="照片预览" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" hidden>
+              <span class="music-meta" id="photoMeta">不放照片，纯净文字</span>
+            </div>
+
+            <div class="sub-label">语音祝福 <span class="sub-tip">可选，录一段想说的话，点开贺卡即播</span></div>
+            <div class="music-block">
+              <button class="btn btn-ghost btn-sm btn-rec" id="recBtn" type="button">按下录音</button>
+              <button class="btn btn-ghost btn-sm" id="voicePrev" type="button" hidden>试听</button>
+              <button class="btn btn-ghost btn-sm" id="voiceDel" type="button" hidden>移除</button>
+              <span class="rec-time" id="recTime"></span>
+              <span class="music-meta" id="voiceMeta">不录则无声；最长 60 秒</span>
+            </div>
+
+            <div class="sub-label">手写署名 <span class="sub-tip">可选，收卡人会看到笔迹一笔一划写出来</span></div>
+            <div class="signpad" id="signpad">
+              <canvas id="signPadCanvas" aria-label="手写署名手写板"></canvas>
+              <span class="signpad-hint">在这里写下你的名字</span>
+            </div>
+            <div class="signpad-tools">
+              <button class="btn btn-ghost btn-sm" id="signClear" type="button">重写</button>
+              <span class="music-meta" id="signMeta">不写则用文字署名</span>
+            </div>
+
+            <div class="sub-label">时节 <span class="sub-tip">自动带入应景文案，改过的不会被动</span></div>
+            <div class="chip-group" id="occasionGroup" role="radiogroup" aria-label="场景"></div>
+          </section>
+
+          <!-- 03 样式：主题、粒子、字体、颜色、彩蛋 -->
+          <section class="pane" data-pane="style" aria-label="样式设置">
+            <div class="pane-head">
+              <h3>样式</h3>
+              <p>主题一眼可辨，细节全部可调</p>
+            </div>
+            <div class="sub-label">主题</div>
+            <div class="theme-group" id="themeGroup" role="radiogroup" aria-label="主题"></div>
+            <div class="sub-label">粒子效果</div>
+            <div class="chip-group" id="effectGroup" role="radiogroup" aria-label="粒子效果"></div>
+            <div class="sub-label">粒子密度</div>
+            <div class="slider-row">
+              <input type="range" id="fDensity" min="20" max="200" step="10" value="100" aria-label="粒子密度">
+              <span class="slider-val" id="densityVal">1.0×</span>
+            </div>
+            <div class="sub-label">卡面字体</div>
+            <div class="chip-group" id="fontGroup" role="radiogroup" aria-label="字体"></div>
+            <div class="sub-label">强调色 <span class="sub-tip">点睛装饰的颜色，选"自动"跟随主题</span></div>
+            <div class="swatch-row" id="accentRow">
+              <input type="color" id="accentCustom" class="sw-custom" value="#5f7d72" title="自定义颜色">
+            </div>
+            <div class="sub-label">背景色 <span class="sub-tip">贺卡底色，自动生成深浅层次</span></div>
+            <div class="swatch-row" id="bgRow">
+              <input type="color" id="bgCustom" class="sw-custom" value="#f8f7f3" title="自定义颜色">
+            </div>
+            <div class="sub-label">彩蛋效果 <span class="sub-tip">收卡人打开时触发，全部可关闭</span></div>
+            <div class="chip-group" id="prankGroup" role="radiogroup" aria-label="彩蛋效果"></div>
+            <div class="sub-label">背景音乐 <span class="sub-tip">可选，用你自己的歌；页面本身无声</span></div>
+            <div class="music-block">
+              <input type="file" id="musicFile" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" hidden>
+              <button class="btn btn-ghost btn-sm" id="musicUp" type="button">上传音乐</button>
+              <button class="btn btn-ghost btn-sm" id="musicPrev" type="button" hidden>试听</button>
+              <button class="btn btn-ghost btn-sm" id="musicDel" type="button" hidden>移除</button>
+              <span class="music-meta" id="musicMeta">不选则无声开场</span>
+            </div>
+            <p class="tip" id="musicTip" hidden></p>
+          </section>
+
+          <!-- 04 信笺：上传自己的 HTML -->
+          <section class="pane" data-pane="letter" aria-label="自定义信笺">
+            <div class="pane-head">
+              <h3>信笺</h3>
+              <p>用你自己的网页当贺卡，占位符自动替换</p>
+            </div>
+            <div class="music-block">
+              <input type="file" id="customFile" accept=".html,.htm,text/html" hidden>
+              <button class="btn btn-ghost btn-sm" id="customUp" type="button">上传 HTML 信笺</button>
+              <button class="btn btn-ghost btn-sm" id="customPrev" type="button" hidden>开新窗预览</button>
+              <button class="btn btn-ghost btn-sm" id="customDel" type="button" hidden>移除</button>
+              <span class="music-meta" id="customMeta">未上传 · 使用内置贺卡版式</span>
+            </div>
+            <p class="tip" id="customTipText">
+              信笺里写 <b>{{收件人}}</b> <b>{{标题}}</b> <b>{{祝福语}}</b> <b>{{署名}}</b>，寄出时自动替换成「内容」页填写的文字；不写占位符则原样寄出。右侧手机预览即时呈现你的信笺。
+            </p>
+            <p class="tip" id="customLinkTip" hidden>
+              这份信笺超过了链接的承载上限（260KB），「贺卡链接」暂不可用；请到「寄出」页用「贺卡文件」或「祝福邮件」，内容一分不少。
+            </p>
+          </section>
+
+          <!-- 05 寄出：四种方式 -->
+          <section class="pane" data-pane="send" aria-label="寄出">
+            <div class="pane-head">
+              <h3>寄出</h3>
+              <p>挑一种方式送给 TA</p>
+            </div>
+            <div class="send-grid">
+              <div class="send-item">
+                <div class="send-name">贺卡链接</div>
+                <div class="send-desc">生成一条网址，微信/QQ 点开即播</div>
+                <button class="btn btn-primary btn-sm" id="genBtn" type="button">生成链接</button>
+              </div>
+              <div class="send-item">
+                <div class="send-name">贺卡文件</div>
+                <div class="send-desc">独立 .html，自带音乐与信笺，离线可播</div>
+                <button class="btn btn-ghost btn-sm" id="exportBtn" type="button">导出文件</button>
+              </div>
+              <div class="send-item">
+                <div class="send-name">祝福邮件</div>
+                <div class="send-desc">排好版的网页邮件，复制后粘贴进邮箱正文</div>
+                <button class="btn btn-ghost btn-sm" id="mailCopyBtn" type="button">复制邮件</button>
+              </div>
+              <div class="send-item">
+                <div class="send-name">邮件应用</div>
+                <div class="send-desc">填 TA 的邮箱，唤起你自己的邮件应用</div>
+                <input type="text" id="mailTo" placeholder="TA 的邮箱（可留空）" autocomplete="off">
+                <button class="btn btn-ghost btn-sm" id="mailBtn" type="button">写邮件</button>
+              </div>
+              <div class="send-item">
+                <div class="send-name">短信</div>
+                <div class="send-desc">填 TA 的手机号，唤起短信应用（链接较长时慎用）</div>
+                <input type="text" id="smsTo" placeholder="TA 的手机号（可留空）" autocomplete="off" inputmode="tel">
+                <button class="btn btn-ghost btn-sm" id="smsBtn" type="button">写短信</button>
+              </div>
+              <div class="send-item">
+                <div class="send-name">实体贺卡</div>
+                <div class="send-desc">排好版的对折卡面，打印机打出来寄给 TA</div>
+                <button class="btn btn-ghost btn-sm" id="printBtn" type="button">打印卡面</button>
+              </div>
+            </div>
+
+            <div class="link-box" id="linkBox" hidden>
+              <input type="text" id="linkInput" readonly aria-label="贺卡链接">
+              <button class="btn btn-ghost" id="copyBtn" type="button">复制</button>
+            </div>
+            <p class="fortune-link" id="fortunePrev" hidden></p>
+            <p class="tip" id="stripTip" hidden></p>
+            <p class="tip" id="fileTip" hidden>
+              当前是本地文件预览：file:// 链接无法分享给别人，先按 README 部署到 Vercel，再复制链接发给 TA。
+            </p>
+            <p class="tip">
+              <button class="btn btn-text btn-sm" id="icsBtn" type="button">下载发送提醒 (.ics)</button>
+              明天这个时间，提醒你把链接寄出去。
+            </p>
+
+            <div class="sub-label mail-preview-label">网页祝福邮件 · 预览</div>
+            <iframe id="mailPreview" title="祝福邮件预览" src="about:blank"></iframe>
+          </section>
+        </div>
+
+        <!-- 右：手机壳实时预览（常驻） -->
+        <aside class="preview-col" id="previewCol" aria-label="实时预览">
+          <div class="preview-bar">
+            <button class="btn btn-ghost btn-sm" id="replayPrevBtn" type="button">↻ 重播</button>
+            <button class="btn btn-ghost btn-sm" id="popOutBtn" type="button">新窗打开</button>
+            <span class="preview-cap-inline">375 × 740 · 即时同步</span>
+          </div>
+          <div class="phone" id="phone">
+            <div class="phone-notch" aria-hidden="true"></div>
+            <iframe id="preview" title="贺卡实时预览" src="about:blank"></iframe>
+          </div>
+          <p class="preview-cap">预览与实际效果一致 · 彩蛋会在预览里同步触发</p>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="site-foot">
+      <span>纯前端 · 无后端 · 配置保存在链接本身</span>
+      <span class="foot-dot">·</span>
+      <span>MIT License</span>
+    </footer>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/editor.js"></script>
+
+  <!-- 实体贺卡打印排面：只在打印时显示 -->
+  <div class="print-sheet" id="printSheet" aria-hidden="true"></div>
+</body>
+</html>
