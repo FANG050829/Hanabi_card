@@ -4,7 +4,7 @@
 
 **为想念的人，做一张清爽的小贺卡。**
 
-[在线体验](https://hanabi-sigma.vercel.app/) · [问题反馈](https://github.com/FANG050829/Hanabi/issues)
+[在线体验](https://hanabi-sigma.vercel.app/) · [问题反馈](https://github.com/FANG050829/Hanabi_card/issues)
 
 | 制作 | 播放 |
 | --- | --- |
