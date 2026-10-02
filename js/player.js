@@ -1629,6 +1629,10 @@
     el.overlay.classList.add('gone');
     el.overlay.style.display = 'none';
     hideHint();
+    /* 开场序列还没跑到 startContent 就跳过时，称呼必须在这里补写，
+     * 否则只剩一个 show 的空竖排（真实 bug：600ms 内跳过必现） */
+    el.to.textContent = cfg.to;
+    el.to.classList.toggle('vlong', Array.from(cfg.to).length > 6);
     el.to.classList.add('show');
     el.orn.classList.add('show');
     el.msgWrap.classList.add('show');

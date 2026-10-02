@@ -1790,12 +1790,25 @@
     }
     if (!avail) return;
     var s = Math.min(1, (avail - 4) / W);
+    /* 竖向也要装得下：双栏 sticky 预览在矮窗口里按高度再收一道，
+     * 136 = sticky top 78 + 预览工具条 ~46 + 底部余量 12 */
+    if (window.matchMedia('(min-width: 921px)').matches) {
+      s = Math.min(s, Math.max(0.42, (window.innerHeight - 136) / H));
+    }
     els.phone.style.width = (W * s).toFixed(1) + 'px';
     els.phone.style.height = (H * s).toFixed(1) + 'px';
     els.iframe.style.transform = 'scale(' + s.toFixed(4) + ')';
     if (els.previewBar) els.previewBar.style.maxWidth = (W * s).toFixed(1) + 'px';
   }
-  window.addEventListener('resize', fitPreview);
+  /* 拖拽窗口期间关掉外壳的变形过渡：width/height 过渡在连续 resize 下每帧都跑布局，
+   * 壳会拖尾；停手 160ms 后恢复，页签切换时手机↔显示器的平滑变形不受影响 */
+  var morphT;
+  window.addEventListener('resize', function () {
+    els.phone.classList.add('no-morph');
+    fitPreview();
+    clearTimeout(morphT);
+    morphT = setTimeout(function () { els.phone.classList.remove('no-morph'); }, 160);
+  });
   fitPreview();
   applyPreviewShell();
 

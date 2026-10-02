@@ -156,7 +156,7 @@
         '--grad-title': 'linear-gradient(180deg,#4a3524 0%,#31220f 100%)',
         '--ink': '#31281c',
         '--ink-soft': 'rgba(49,40,28,.76)',
-        '--ink-faint': 'rgba(49,40,28,.55)',
+        '--ink-faint': 'rgba(49,40,28,.7)',
         '--hairline': 'rgba(49,40,28,.16)',
         '--hairline-strong': 'rgba(49,40,28,.34)',
         '--surface': '#fbf6ea'
@@ -178,7 +178,7 @@
         '--grad-title': 'linear-gradient(180deg,#232520 0%,#111310 100%)',
         '--ink': '#1d1f1a',
         '--ink-soft': 'rgba(29,31,26,.78)',
-        '--ink-faint': 'rgba(29,31,26,.55)',
+        '--ink-faint': 'rgba(29,31,26,.68)',
         '--hairline': 'rgba(29,31,26,.18)',
         '--hairline-strong': 'rgba(29,31,26,.4)',
         '--surface': '#fffdf6'

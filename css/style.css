@@ -46,7 +46,8 @@ html, body { height: 100%; }
 /* hidden 属性必须永远生效（.btn 等作者 display 规则会盖过 UA 的 hidden 规则） */
 [hidden] { display: none !important; }
 /* 浏览器原生部件也属于设计：细滚动条 + 主题色光标 */
-html { scrollbar-width: thin; scrollbar-color: rgba(35, 37, 32, .18) transparent; }
+/* 滚动条跟随主题墨色：夜帖等深色主题下不再是一条隐形的轨道 */
+html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 32%, transparent) transparent; }
 body {
   font-family: var(--font-body);
   color: var(--ink);
@@ -377,8 +378,8 @@ body.lit .bg { filter: brightness(1.025) saturate(1.05); }
 }
 .pane-head p { margin-top: 7px; font-size: 12.5px; color: var(--ink-faint); letter-spacing: .06em; }
 
-/* 灵感页：成品模板网格（自适应列数，7 套也不破行） */
-.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+/* 灵感页：成品模板网格。九套固定 3×3——任何宽度都不出现孤行 */
+.tpl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .tpl-grid .tpl-card { width: auto; }
 
 .tpl-card {
@@ -424,7 +425,16 @@ body.lit .bg { filter: brightness(1.025) saturate(1.05); }
   display: block;
 }
 .tpl-name { display: block; font-size: 13.5px; color: var(--ink); letter-spacing: .06em; font-weight: 600; }
-.tpl-desc { display: block; margin-top: 4px; font-size: 11px; color: var(--ink-faint); letter-spacing: .08em; }
+.tpl-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: .08em;
+}
 
 /* 双栏 */
 .editor-cols {
@@ -551,8 +561,8 @@ body.lit .bg { filter: brightness(1.025) saturate(1.05); }
 .sw-custom::-webkit-color-swatch-wrapper { padding: 2px; }
 .sw-custom::-webkit-color-swatch { border: none; border-radius: 50%; }
 
-/* 主题卡片 */
-.theme-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+/* 主题卡片：九款固定 3×3，「特刊」不再孤悬在第四行 */
+.theme-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .theme-card {
   position: relative;
   display: flex;
@@ -594,8 +604,19 @@ body.lit .bg { filter: brightness(1.025) saturate(1.05); }
   word-break: break-all;
 }
 
-/* 寄出方式网格 */
+/* 寄出方式网格：七种方式，末张跨整行作收束，不落单 */
 .send-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (min-width: 431px) {
+  .send-item:last-child {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+  }
+  .send-item:last-child .send-name { flex: none; }
+  .send-item:last-child .send-desc { flex: 1; }
+  .send-item:last-child .btn { margin-top: 0; width: auto; white-space: nowrap; }
+}
 .send-item {
   display: flex;
   flex-direction: column;
@@ -879,6 +900,11 @@ body.lit .bg { filter: brightness(1.025) saturate(1.05); }
  * 百分比 max-width 若压在标题上，会按收缩后的天然宽度折算，
  * 反把本来一行的短标题挤成两行 */
 .to-line:not(.vlong) ~ .title-block { max-width: calc(100% - 80px); }
+/* 窄视口下舞台与右上角的「跳过」芯片同占一角：
+ * 称呼下移到芯片之后，首字不再被胶囊盖住 */
+@media (max-width: 732px) {
+  .to-line:not(.vlong) { top: calc(62px + env(safe-area-inset-top)); }
+}
 /* 三种卡面字体 */
 body[data-font="kai"] .card-title, body[data-font="kai"] .card-msg, body[data-font="kai"] .signature, body[data-font="kai"] .to-line { font-family: var(--font-kai); }
 body[data-font="song"] .card-title, body[data-font="song"] .card-msg, body[data-font="song"] .signature, body[data-font="song"] .to-line { font-family: var(--font-song); }
@@ -1217,7 +1243,7 @@ body.do-shake { animation: shakeH .68s ease-in-out; }
 .open-overlay.gone { opacity: 0; pointer-events: none; }
 .open-inner { display: flex; flex-direction: column; align-items: center; }
 .open-hint {
-  margin-top: 42px;
+  margin-top: 30px;
   font-size: 12px;
   letter-spacing: .46em;
   text-indent: .46em;
@@ -1240,11 +1266,12 @@ body.do-shake { animation: shakeH .68s ease-in-out; }
 }
 .open-overlay.gone ~ .open-edition { opacity: 0; }
 
-/* 开场底下的一方浅影：让信封/礼盒"落在"纸面上而不是飘着 */
+/* 开场底下的一方浅影：紧贴信封/礼盒之下，让它们"落在"纸面上而不是飘着 */
 .open-ground {
-  width: min(240px, 58vw);
+  width: min(276px, 66vw);
   height: 22px;
-  margin-top: 46px;
+  /* 紧贴物体：上浮动画最多抬 8px，影子在 20~28px 间徘徊 */
+  margin-top: 20px;
   border-radius: 50%;
   background: radial-gradient(50% 50% at 50% 50%, rgba(30, 32, 26, .13), rgba(30, 32, 26, 0) 72%);
   animation: groundBreath 3.4s ease-in-out infinite;
@@ -1407,7 +1434,8 @@ body.do-shake { animation: shakeH .68s ease-in-out; }
   border-radius: 2px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
 }
-/* 蝴蝶结：两个环 + 中结 + 两根飘带，比"两个圆圈"更像礼物 */
+/* 蝴蝶结：结心 + 两枚实心缎面环自结心向上翘 + 两根下垂飘带。
+ * 环是实心渐变（不是空心圈）——空心双圆并排会读成一副眼镜 */
 .gift-bow {
   position: absolute;
   top: -17px; left: 50%;
@@ -1421,25 +1449,27 @@ body.do-shake { animation: shakeH .68s ease-in-out; }
 .gift-bow::before, .gift-bow::after {
   content: '';
   position: absolute;
-  top: -9px;
-  width: 40px; height: 22px;
-  border: 8px solid #8aa39a;
-  border-radius: 50%;
-  background: linear-gradient(150deg, rgba(255, 255, 255, .35), rgba(255, 255, 255, 0) 55%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2);
+  top: -8px;
+  width: 34px; height: 23px;
+  background: linear-gradient(155deg, #c9d6cd 0%, #93aa9f 55%, #7e998f 100%);
+  box-shadow:
+    inset 2px 3px 5px rgba(255, 255, 255, .42),
+    inset -2px -3px 5px rgba(30, 32, 26, .12),
+    0 2px 5px rgba(30, 32, 26, .16);
 }
-.gift-bow::before { right: 12px; transform: rotate(-38deg); }
-.gift-bow::after { left: 12px; transform: rotate(38deg); }
-/* 结下两根短飘带：更短、更外撇，从结后探出，不再像"眼镜腿" */
+.gift-bow::before { right: 8px; transform: rotate(-44deg); border-radius: 56% 56% 52% 52%; }
+.gift-bow::after { left: 8px; transform: rotate(44deg); border-radius: 56% 56% 52% 52%; }
+/* 结下两根飘带：从结后探出、垂向外下方，尾端低于环底 */
 .gift-bow i {
   position: absolute;
-  top: 11px;
-  width: 7px; height: 13px;
+  top: 12px;
+  width: 8px; height: 16px;
   border-radius: 3px;
-  background: #8aa39a;
+  background: linear-gradient(180deg, #8aa39a, #77908a);
+  box-shadow: 0 2px 3px rgba(30, 32, 26, .14);
 }
-.gift-bow i:first-child { left: -4px; transform: rotate(26deg); }
-.gift-bow i:last-child { right: -4px; transform: rotate(-26deg); }
+.gift-bow i:first-child { left: -3px; transform: rotate(30deg); }
+.gift-bow i:last-child { right: -3px; transform: rotate(-30deg); }
 
 .gift.shake { animation: giftShake .5s ease-in-out, envFloat 3.4s ease-in-out infinite; }
 @keyframes giftShake {
@@ -1466,7 +1496,8 @@ body.has-gift .env { display: none; }
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  margin-top: 26px;
+  /* 蜡烛在蛋糕顶部：给祝福语末行与火苗之间留出一口气 */
+  margin-top: 40px;
   opacity: 0;
   transform: translateY(16px);
   transition: opacity .6s var(--ease-out), transform .6s var(--settle);
@@ -2116,7 +2147,8 @@ body.letter-mode .photo-wrap { display: none; }
    * 用独立的 scale 属性放大（不占布局、也不干扰 envFloat 的 transform 动画），
    * 提示语随之下移，保持呼吸感 */
   .gift { scale: 1.3; }
-  body.has-gift .open-hint { margin-top: 70px; }
+  /* scale 不占布局：礼盒放大后盒底向下探出 (208×1.3−208)/2 ≈ 31px，影子让出这段再贴 */
+  body.has-gift .open-ground { margin-top: 52px; }
   .open-hint { font-size: 12.5px; }
 }
 
@@ -2140,7 +2172,6 @@ body.letter-mode .photo-wrap { display: none; }
   .site-head h1 { font-size: 1.4rem; letter-spacing: .16em; }
   .site-head p { font-size: 12px; letter-spacing: .1em; }
   .head-actions .btn { padding: 9px 12px; font-size: 12.5px; }
-  .theme-group { grid-template-columns: repeat(2, 1fr); }
   .send-grid { grid-template-columns: 1fr; }
   .stage-inner { padding-left: 20px; padding-right: 20px; }
   .to-line { right: 14px; }
@@ -2839,6 +2870,8 @@ body.oracle-box .blindbox { display: block; }
   transition: width .45s var(--ease-out), height .45s var(--ease-out), border-radius .45s var(--ease-out);
 }
 .phone iframe { transition: transform .45s var(--ease-out); }
+/* 拖拽窗口期间由 editor.js 加上：连续 resize 下不跑过渡（详见 editor.js resize 监听） */
+.phone.no-morph, .phone.no-morph iframe { transition: none; }
 /* 刮刮卡：硬币刮层光标（自绘 SVG，随系统缩放） */
 .scratch-cv {
   cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="%23e8e2d2" stroke="%23a89a7c" stroke-width="2.4"/><circle cx="14" cy="14" r="6.5" fill="none" stroke="%23c9b99a" stroke-width="1.6"/></svg>') 14 14, crosshair;
