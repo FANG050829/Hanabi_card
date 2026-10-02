@@ -16,18 +16,29 @@
     message: '新的一岁，愿你不慌不忙，\n有得偿所愿的运气，\n也有兜住一切的能力。', // 祝福语，支持换行；单独一行「---」表示分页
     from: '惦记你的人',                     // 署名
     occasion: 'birthday',                   // 场景
+    layout: 'portrait',                     // 版式：portrait 手机竖屏 / scroll 横卷 / folding 屏风
     theme: 'aurora',                        // 主题
     effect: 'fireworks',                    // 粒子效果
     font: 'song',                           // 卡面字体 kai / song / hei
     music: 'off',                           // 背景音乐：'off' 或 data:audio 音频（用户上传）
     voice: 'off',                           // 语音祝福：'off' 或 data:audio（编辑器现场录制）
-    photo: '',                              // 照片：''=无，或压缩后的 data:image
+    photo: '',                              // 照片：''=无，或压缩后的 data:image（旧链接兼容，新卡走 photos）
+    photos: [],                             // 照片（最多 6 张）：data:image 数组
     sign: null,                             // 手写署名：null 或 { strokes:[{w,p:[...] }] }
     custom: 'off',                          // 自定义信笺：'off' 或用户上传的 HTML 原文
     density: 1,                             // 粒子密度 0.2 ~ 2
     accent: '',                             // 强调色：''=跟随主题，或 #rrggbb
     bg: '',                                 // 背景色：''=跟随主题，或 #rrggbb
-    prank: 'off'                            // 彩蛋效果：off / shake / pop / run / danmaku
+    prank: 'off',                           // 彩蛋效果：off/shake/pop/run/danmaku/muyu/koi/gold/crack/emoji
+    unlockAt: 0,                            // 定时开启：epoch 毫秒，0=不限制
+    opening: 'auto',                        // 开场方式：auto 信封/礼盒 / scratch 刮刮卡 / fog 拂晓雾
+    gate: 'off',                            // 开启门槛：off 无 / slider 滑动解锁
+    oracle: 'cup',                          // 收尾互动：cup 求签筒 / blindbox 拆盲盒
+    shake: 'off',                           // 摇一摇彩带（需要动作传感器授权，默认关）
+    shine: 'off',                           // 标题流光烫金
+    doodle: 'off',                          // 标题上方简笔涂鸦
+    spectrum: 'on',                         // 随音乐律动（有音乐时频谱条）
+    trail: 'on'                             // 触点粒子拖尾
   };
 
   /* ---------- 场景预设：切换场景时，未手动编辑过的文案会跟随预设 ---------- */
@@ -118,14 +129,76 @@
     hei:  { label: '现代黑' }
   };
 
+  /* ---------- 版式（屏幕方向大类） ----------
+   * portrait 手机竖屏：经典单列，手机上打开最好看；
+   * scroll 横卷 / folding 屏风：电脑横屏整屏排版，
+   * 在手机或竖向窗口上打开会自动回退为竖屏排版。 */
+  var LAYOUTS = {
+    portrait: { label: '手机竖屏' },
+    scroll:   { label: '横卷', pc: true },
+    folding:  { label: '屏风', pc: true }
+  };
+
   /* ---------- 彩蛋效果（网红向，全部有界可关，不做无限弹窗） ---------- */
   var PRANKS = {
     off:      { label: '无' },
     shake:    { label: '屏幕震动' },
     pop:      { label: '弹窗雨' },
     run:      { label: '跑路红包' },
-    danmaku:  { label: '祝福弹幕' }
+    danmaku:  { label: '祝福弹幕' },
+    muyu:     { label: '电子木鱼' },
+    koi:      { label: '锦鲤游屏' },
+    gold:     { label: '金粉喷雾' },
+    crack:    { label: '屏幕碎裂' },
+    emoji:    { label: '表情包雨' }
   };
+
+  /* ---------- 开场方式：把"打开这张卡"变成一个动作 ---------- */
+  var OPENINGS = {
+    auto:    { label: '自动' },
+    scratch: { label: '刮刮卡' },
+    fog:     { label: '拂晓雾' }
+  };
+
+  /* ---------- 收尾互动皮肤 ---------- */
+  var ORACLES = {
+    cup:      { label: '求签筒' },
+    blindbox: { label: '拆盲盒' }
+  };
+
+  /* ---------- 开启门槛：正式内容前加一道轻交互 ---------- */
+  var GATES = {
+    off:    { label: '无' },
+    slider: { label: '滑动解锁' }
+  };
+
+  /* ---------- 藏头诗：四句藏头现成语，纯本地、可改 ---------- */
+  var POEMS = [
+    {
+      label: '生日快乐',
+      text: '生来便是追梦人，\n日常小事皆温柔，\n快意恩仇潇洒过，\n乐享清欢岁岁安。'
+    },
+    {
+      label: '新春快乐',
+      text: '新年钟声传万里，\n春风得意花千树，\n快意人生从今始，\n乐享团圆到白头。'
+    },
+    {
+      label: '心想事成',
+      text: '心有暖阳照前路，\n想做的都如愿偿，\n事随人愿花常开，\n成全所有小盼望。'
+    },
+    {
+      label: '平安喜乐',
+      text: '平淡日子有微光，\n安稳岁月不慌张，\n喜从天降笑开颜，\n乐在身边人相伴。'
+    },
+    {
+      label: '前程似锦',
+      text: '前路自有灯火照，\n程途步步皆坦荡，\n似水流年不负卿，\n锦绣未来正年少。'
+    },
+    {
+      label: '万事胜意',
+      text: '万里星辰皆可摘，\n事在人为路自宽，\n胜友如云常相伴，\n意气风发向明天。'
+    }
+  ];
 
   /* ---------- 灵感模板：一键套用成品组合（保留用户已填的收件人与署名） ---------- */
   var TEMPLATES = [
@@ -163,6 +236,16 @@
       name: '灯河祈愿',
       desc: '暮沙 · 天灯',
       cfg: { occasion: 'universal', theme: 'sunset', effect: 'lantern', font: 'kai', title: '所愿皆成', message: '放一盏天灯到河上去，\n替我说给夜空听：\n你所盼望的，都在路上。' }
+    },
+    {
+      name: '横卷星河',
+      desc: '夜空 · 星空 · 电脑横屏',
+      cfg: { occasion: 'universal', layout: 'scroll', theme: 'night', effect: 'starfield', font: 'song', title: '今夜星河', message: '把这句祝福放进夜空：\n愿你眼里有星辰，\n心里有暖意，路上有清风。' }
+    },
+    {
+      name: '屏风夜帖',
+      desc: '墨夜 · 萤火 · 电脑横屏',
+      cfg: { occasion: 'thanks', layout: 'folding', theme: 'ink', effect: 'fireflies', font: 'kai', title: '谢谢你', message: '谢谢你来过我的生活，\n像冬天里的一杯热茶。\n这份心意，记得收好。' }
     }
   ];
 
@@ -183,6 +266,7 @@
   /* 照片限制：上传后本地压缩，仍超限则进不了链接 */
   var PHOTO_MAX_CHARS = 8500000;
   var LINK_PHOTO_CHARS = 300000;
+  var PHOTO_MAX_COUNT = 6;
 
   /* 手写署名：笔画点数上限（坐标量化为 0~4000 整数） */
   var SIGN_MAX_STROKES = 64;
@@ -195,8 +279,9 @@
   var LINK_CUSTOM_CHARS = 260000;
 
   /* 兜底白名单；若 themes.js / effects.js 已加载，则优先用它们的注册表 */
-  var FALLBACK_THEMES = ['aurora', 'midnight', 'sakura', 'sunset'];
-  var FALLBACK_EFFECTS = ['fireworks', 'confetti', 'starfield', 'snow', 'petals', 'meteor', 'lantern'];
+  var FALLBACK_THEMES = ['aurora', 'midnight', 'sakura', 'sunset', 'night', 'ink', 'neon', 'ticket', 'paper'];
+  var FALLBACK_EFFECTS = ['fireworks', 'confetti', 'starfield', 'snow', 'petals', 'meteor', 'lantern', 'fireflies', 'aurora', 'bubbles',
+    'textfireworks', 'startrail', 'ocean', 'dandelion', 'rainglass', 'matrix', 'paperplane'];
   var FALLBACK_FONTS = ['kai', 'song', 'hei'];
 
   function validTheme(name) {
@@ -228,6 +313,7 @@
     var raw = (input && typeof input === 'object') ? input : {};
     var cfg = {};
     for (var k in DEFAULTS) cfg[k] = DEFAULTS[k];
+    cfg.photos = []; // 数组默认值不能共享引用，否则污染 DEFAULTS
 
     var to = cleanStr(raw.to, LIMITS.to);            if (to) cfg.to = to;
     var title = cleanStr(raw.title, LIMITS.title);   if (title) cfg.title = title;
@@ -259,6 +345,19 @@
         /^data:image\/(png|jpe?g|webp);base64,/.test(raw.photo) &&
         raw.photo.length <= PHOTO_MAX_CHARS) {
       cfg.photo = raw.photo;
+    }
+    /* 照片（多张）：逐张校验，总数封顶；单张超限丢那张，不影响其他 */
+    if (Array.isArray(raw.photos)) {
+      var phTotal = 0;
+      for (var pi = 0; pi < raw.photos.length && cfg.photos.length < PHOTO_MAX_COUNT; pi++) {
+        var ph = raw.photos[pi];
+        if (typeof ph === 'string' &&
+            /^data:image\/(png|jpe?g|webp);base64,/.test(ph) &&
+            ph.length + phTotal <= PHOTO_MAX_CHARS) {
+          cfg.photos.push(ph);
+          phTotal += ph.length;
+        }
+      }
     }
     /* 手写署名：量化笔划数据，逐条校验（永不抛错，坏了就当没写） */
     if (raw.sign && typeof raw.sign === 'object' && Array.isArray(raw.sign.strokes)) {
@@ -293,6 +392,19 @@
     if (typeof raw.accent === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.accent)) cfg.accent = raw.accent.toLowerCase();
     if (typeof raw.bg === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.bg)) cfg.bg = raw.bg.toLowerCase();
     if (Object.prototype.hasOwnProperty.call(PRANKS, raw.prank)) cfg.prank = raw.prank;
+    /* 版式：不在注册表里的一律回落手机竖屏（旧链接无此字段，行为不变） */
+    if (Object.prototype.hasOwnProperty.call(LAYOUTS, raw.layout)) cfg.layout = raw.layout;
+    /* 开场方式 / 收尾互动 / 开启门槛 */
+    if (Object.prototype.hasOwnProperty.call(OPENINGS, raw.opening)) cfg.opening = raw.opening;
+    if (Object.prototype.hasOwnProperty.call(ORACLES, raw.oracle)) cfg.oracle = raw.oracle;
+    if (Object.prototype.hasOwnProperty.call(GATES, raw.gate)) cfg.gate = raw.gate;
+    /* 布尔型开关：只认 'on' / 'off' 两个值 */
+    ['shake', 'shine', 'doodle', 'spectrum', 'trail'].forEach(function (k) {
+      if (raw[k] === 'on' || raw[k] === 'off') cfg[k] = raw[k];
+    });
+    /* 定时开启：0=不限制；否则须为合法的时间戳（毫秒） */
+    var ua = Number(raw.unlockAt);
+    if (isFinite(ua) && ua > 0) cfg.unlockAt = Math.floor(ua);
     return cfg;
   }
 
@@ -328,6 +440,84 @@
   }
 
   function toHash(cfg) { return encode(sanitize(cfg)); }
+
+  /* ---------- 密语解锁：配置整包 AES-GCM 加密进链接 ----------
+   * hash 形如 k1.<salt>.<iv>.<密文>（各段均为 base64url）。
+   * 密钥由密语经 PBKDF2 派生——链接泄露也打不开，不知道密语不行。 */
+  var LOCK_PREFIX = 'k1.';
+  var PBKDF2_ITERATIONS = 120000;
+
+  function bytesToB64url(bytes) {
+    var bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64urlToBytes(str) {
+    str = String(str).replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    var bin = atob(str);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  function subtle() {
+    return (window.crypto && window.crypto.subtle) ? window.crypto.subtle : null;
+  }
+  function deriveLockKey(pass, salt, usages) {
+    var subtleApi = subtle();
+    var enc = new TextEncoder();
+    return subtleApi.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey'])
+      .then(function (material) {
+        return subtleApi.deriveKey(
+          { name: 'PBKDF2', salt: salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+          material, { name: 'AES-GCM', length: 256 }, false, usages);
+      });
+  }
+  /* 加密一份配置 -> 'k1.salt.iv.ct'；不支持 WebCrypto 的环境 reject */
+  function encryptWithPass(cfg, pass) {
+    var api = subtle();
+    if (!api) return Promise.reject(new Error('WebCrypto 不可用'));
+    if (!pass) return Promise.reject(new Error('密语为空'));
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var plain = new TextEncoder().encode(JSON.stringify(sanitize(cfg)));
+    return deriveLockKey(pass, salt, ['encrypt']).then(function (key) {
+      return api.encrypt({ name: 'AES-GCM', iv: iv }, key, plain);
+    }).then(function (ct) {
+      return LOCK_PREFIX + bytesToB64url(salt) + '.' + bytesToB64url(iv) + '.' + bytesToB64url(new Uint8Array(ct));
+    });
+  }
+  /* 用密语解开 'k1....' -> 配置；密语错误/数据损坏 reject */
+  function decryptWithPass(code, pass) {
+    var api = subtle();
+    if (!api) return Promise.reject(new Error('WebCrypto 不可用'));
+    var parts = String(code).split('.');
+    if (parts.length !== 4 || parts[0] !== 'k1') return Promise.reject(new Error('不是加密链接'));
+    var salt = b64urlToBytes(parts[1]);
+    var iv = b64urlToBytes(parts[2]);
+    var ct = b64urlToBytes(parts[3]);
+    return deriveLockKey(pass, salt, ['decrypt']).then(function (key) {
+      return api.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
+    }).then(function (plain) {
+      return sanitize(JSON.parse(new TextDecoder().decode(plain)));
+    });
+  }
+  function isLockedCode(code) {
+    return String(code || '').indexOf(LOCK_PREFIX) === 0;
+  }
+
+  /* 由一段现成的配置编码（含加密格式）拼出 card.html 完整链接 */
+  function buildCardURLCode(code) {
+    var base;
+    try {
+      base = new URL('card.html', location.href);
+    } catch (e) {
+      base = { href: location.href.replace(/[^\/]*$/, 'card.html') };
+    }
+    base.search = '';
+    base.hash = code;
+    return base.href;
+  }
 
   /* 构造 card.html 完整链接；opts.preview=true 时附加 ?preview=1 供编辑器内嵌预览 */
   function buildCardURL(cfg, opts) {
@@ -448,7 +638,12 @@
     var sans = "-apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
     var mono = "ui-monospace,'SF Mono',Consolas,Menlo,monospace";
     var msg = escapeHtml(cfg.message).replace(/\n/g, '<br>');
-    var edition = editionOf(toHash(cfg));
+    var mailPhoto = (cfg.photos && cfg.photos.length) ? cfg.photos[0] : cfg.photo;
+    /* 帖号与签语必须和收卡人点开的链接同源：从卡片链接的 hash 推导，
+     * 而不是拿完整配置重新编码——超限媒体降级后两者会算出不同的签 */
+    var linkHash = (/#([^#]+)$/).exec(String(cardLink || ''));
+    var code = linkHash ? linkHash[1] : toHash(cfg);
+    var edition = editionOf(code);
     var btn = cardLink
       ? '<table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>' +
         '<td bgcolor="' + ink + '" style="background:' + ink + ';border-radius:10px;">' +
@@ -466,8 +661,8 @@
       '<tr><td style="padding:16px 44px 6px;font-family:' + serif + ';font-size:29px;font-weight:600;letter-spacing:5px;color:' + ink + ';">' + escapeHtml(cfg.title) + '</td></tr>' +
       '<tr><td style="padding:6px 44px 22px;"><table role="presentation" width="56" cellpadding="0" cellspacing="0"><tr>' +
       '<td height="2" bgcolor="' + accent + '" style="background:' + accent + ';font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>' +
-      (cfg.photo
-        ? '<tr><td style="padding:0 44px 22px;" align="center"><img src="' + cfg.photo + '" width="380" alt="照片" style="width:100%;max-width:380px;height:auto;border-radius:8px;border:1px solid ' + hairline + ';" /></td></tr>'
+      (mailPhoto
+        ? '<tr><td style="padding:0 44px 22px;" align="center"><img src="' + mailPhoto + '" width="380" alt="照片" style="width:100%;max-width:380px;height:auto;border-radius:8px;border:1px solid ' + hairline + ';" /></td></tr>'
         : '') +
       '<tr><td style="padding:2px 44px 10px;font-family:' + sans + ';font-size:15px;line-height:2.15;letter-spacing:.5px;color:' + body + ';">' + msg + '</td></tr>' +
       '<tr><td style="padding:22px 44px 8px;" align="right">' +
@@ -477,7 +672,7 @@
       '</tr></table></td></tr>' +
       (btn ? '<tr><td align="center" style="padding:30px 44px 8px;">' + btn + '</td></tr>' : '') +
       '<tr><td style="padding:24px 44px 36px;font-family:' + mono + ';font-size:9px;letter-spacing:3px;color:' + faint + ';">' +
-      edition + ' · ' + fortuneOf(toHash(cfg)).text + ' · 由 <a href="' + cardLink.replace(/#.*$/, '') + '" style="color:' + faint + ';text-decoration:underline;">花火贺卡</a> 制作</td></tr>' +
+      edition + ' · ' + fortuneOf(code).text + ' · 由 <a href="' + cardLink.replace(/#.*$/, '') + '" style="color:' + faint + ';text-decoration:underline;">花火贺卡</a> 制作</td></tr>' +
       '</table></td></tr></table>';
   }
 
@@ -537,6 +732,11 @@
     DEFAULTS: DEFAULTS,
     OCCASIONS: OCCASIONS,
     FONTS: FONTS,
+    LAYOUTS: LAYOUTS,
+    OPENINGS: OPENINGS,
+    ORACLES: ORACLES,
+    GATES: GATES,
+    POEMS: POEMS,
     PRANKS: PRANKS,
     TEMPLATES: TEMPLATES,
     LIMITS: LIMITS,
@@ -548,6 +748,7 @@
     LINK_PHOTO_CHARS: LINK_PHOTO_CHARS,
     SIGN_MAX_STROKES: SIGN_MAX_STROKES,
     SIGN_MAX_POINTS: SIGN_MAX_POINTS,
+    PHOTO_MAX_COUNT: PHOTO_MAX_COUNT,
     CUSTOM_MAX_CHARS: CUSTOM_MAX_CHARS,
     LINK_CUSTOM_CHARS: LINK_CUSTOM_CHARS,
     defaults: defaults,
@@ -557,6 +758,10 @@
     fromHash: fromHash,
     toHash: toHash,
     buildCardURL: buildCardURL,
+    buildCardURLCode: buildCardURLCode,
+    encryptWithPass: encryptWithPass,
+    decryptWithPass: decryptWithPass,
+    isLockedCode: isLockedCode,
     editionOf: editionOf,
     fortuneOf: fortuneOf,
     splitMessage: splitMessage,

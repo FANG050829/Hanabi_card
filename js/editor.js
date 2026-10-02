@@ -17,6 +17,17 @@
     blessBtn: $('blessBtn'),
     pageBreakBtn: $('pageBreakBtn'),
     occasionGroup: $('occasionGroup'),
+    layoutGroup: $('layoutGroup'),
+    openingGroup: $('openingGroup'),
+    oracleGroup: $('oracleGroup'),
+    gateGroup: $('gateGroup'),
+    poemBtn: $('poemBtn'),
+    poemRow: $('poemRow'),
+    swShake: $('swShake'),
+    swShine: $('swShine'),
+    swDoodle: $('swDoodle'),
+    swSpectrum: $('swSpectrum'),
+    swTrail: $('swTrail'),
     themeGroup: $('themeGroup'),
     effectGroup: $('effectGroup'),
     fontGroup: $('fontGroup'),
@@ -30,7 +41,8 @@
     photoFile: $('photoFile'),
     photoUp: $('photoUp'),
     photoDel: $('photoDel'),
-    photoThumb: $('photoThumb'),
+    photoTint: $('photoTint'),
+    photoStrip: $('photoStrip'),
     photoMeta: $('photoMeta'),
     recBtn: $('recBtn'),
     voicePrev: $('voicePrev'),
@@ -63,6 +75,11 @@
     smsTo: $('smsTo'),
     smsBtn: $('smsBtn'),
     printBtn: $('printBtn'),
+    shareBtn: $('shareBtn'),
+    fPass: $('fPass'),
+    fUnlock: $('fUnlock'),
+    passState: $('passState'),
+    unlockState: $('unlockState'),
     icsBtn: $('icsBtn'),
     fortunePrev: $('fortunePrev'),
     mailCopyBtn: $('mailCopyBtn'),
@@ -76,7 +93,9 @@
     fileTip: $('fileTip'),
     iframe: $('preview'),
     phone: $('phone'),
-    previewCol: $('previewCol')
+    previewCol: $('previewCol'),
+    previewBar: document.querySelector('.preview-bar'),
+    previewCap: $('previewCap')
   };
 
   /* ---------- 状态：hash 预填 > 本地草稿 > 默认演示 ---------- */
@@ -104,7 +123,12 @@
     els.musicPrev.hidden = false;
     els.musicDel.hidden = false;
   }
-  if (state.photo) updatePhotoUI();
+  /* 旧草稿只有单张 photo：迁移进 photos 数组走新通道 */
+  if ((!state.photos || !state.photos.length) && state.photo) {
+    state.photos = [state.photo];
+  }
+  if (!Array.isArray(state.photos)) state.photos = [];
+  if (state.photos.length) updatePhotoUI();
   if (state.voice !== 'off') { updateVoiceUI(0); }
   if (state.sign) {
     els.signpad.classList.add('dirty');
@@ -121,12 +145,13 @@
     var card = document.createElement('button');
     card.type = 'button';
     card.className = 'tpl-card';
-    card.innerHTML = '<i class="tpl-sw" aria-hidden="true"><canvas></canvas></i><span class="tpl-name"></span><span class="tpl-desc"></span>';
+    card.innerHTML = '<i class="tpl-sw" aria-hidden="true"><canvas></canvas></i><span class="tpl-name"></span><span class="tpl-desc"></span><span class="tpl-badge" hidden>电脑端</span>';
     var sw = card.querySelector('.tpl-sw');
     sw.style.background =
       'radial-gradient(120% 120% at 30% 20%,' + theme.swatch[0] + ' 0%,transparent 55%),' + theme.swatch[1];
     card.querySelector('.tpl-name').textContent = tpl.name;
     card.querySelector('.tpl-desc').textContent = tpl.desc;
+    card.querySelector('.tpl-badge').hidden = !tpl.cfg.layout;
     tplEngines.push({
       card: card,
       canvas: card.querySelector('canvas'),
@@ -160,9 +185,24 @@
       reduced: !live
     });
   }
-  /* 灵感卡常驻实况：画布小、粒子少，整排开销可忽略；
-   * 引擎自带 resize 处理，无需额外照看。 */
-  tplEngines.forEach(function (e) { mountTpl(e, true); });
+  /* 灵感卡实况：滚出视野就停掉引擎、回到视野再挂上，
+   * 不在看不见的画布上白烧帧（引擎自带 resize 处理，无需额外照看）。 */
+  if ('IntersectionObserver' in window) {
+    var tplIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        var e = tplEngines[(en.target.getAttribute('data-tpl') || '0') * 1];
+        if (!e) return;
+        if (en.isIntersecting) { if (!e.live) mountTpl(e, true); }
+        else if (e.live) { e.live.stop(); e.live = null; }
+      });
+    }, { rootMargin: '80px' });
+    tplEngines.forEach(function (e, i) {
+      e.card.setAttribute('data-tpl', String(i));
+      tplIO.observe(e.card);
+    });
+  } else {
+    tplEngines.forEach(function (e) { mountTpl(e, true); });
+  }
 
   /* ---------- 场景选项 ---------- */
   Object.keys(C.OCCASIONS).forEach(function (key) {
@@ -190,8 +230,116 @@
     els.occasionGroup.appendChild(label);
   });
 
-  /* ---------- 主题选项（方形色片） ---------- */
-  TH.list().forEach(function (t) {
+  /* ---------- 版式选项：手机竖屏 / 电脑横屏（横卷·屏风） ---------- */
+  Object.keys(C.LAYOUTS).forEach(function (key) {
+    var item = C.LAYOUTS[key];
+    var label = document.createElement('label');
+    label.className = 'pill';
+    var input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'layout';
+    input.value = key;
+    input.checked = key === state.layout;
+    var span = document.createElement('span');
+    span.textContent = item.label;
+    if (item.pc) span.title = '电脑横屏版式 · 手机上打开自动回退竖屏';
+    label.appendChild(input);
+    label.appendChild(span);
+    input.addEventListener('change', function () {
+      if (!input.checked) return;
+      state.layout = key;
+      applyPreviewShell();
+      scheduleSync();
+    });
+    els.layoutGroup.appendChild(label);
+  });
+
+  /* ---------- 通用：一组单选胶囊（注册表 -> chips） ---------- */
+  function renderChipGroup(container, registry, groupName, getState, setState) {
+    if (!container) return;
+    Object.keys(registry).forEach(function (key) {
+      var item = registry[key];
+      var label = document.createElement('label');
+      label.className = 'pill';
+      var input = document.createElement('input');
+      input.type = 'radio';
+      input.name = groupName;
+      input.value = key;
+      input.checked = key === getState();
+      var span = document.createElement('span');
+      span.textContent = item.label;
+      if (item.tip) span.title = item.tip;
+      label.appendChild(input);
+      label.appendChild(span);
+      input.addEventListener('change', function () {
+        if (!input.checked) return;
+        setState(key);
+        scheduleSync();
+      });
+      container.appendChild(label);
+    });
+  }
+
+  /* ---------- 开场方式 / 收尾互动 / 开启门槛 ---------- */
+  renderChipGroup(els.openingGroup, C.OPENINGS, 'opening',
+    function () { return state.opening; },
+    function (k) { state.opening = k; });
+  renderChipGroup(els.oracleGroup, C.ORACLES, 'oracle',
+    function () { return state.oracle; },
+    function (k) { state.oracle = k; });
+  renderChipGroup(els.gateGroup, C.GATES, 'gate',
+    function () { return state.gate; },
+    function (k) { state.gate = k; });
+
+  /* ---------- 细节开关（布尔开关，'on'/'off'） ---------- */
+  [['swTrail', 'trail', '收卡人手指划过卡面，拖出一串主题色微光'],
+   ['swShine', 'shine', '一道金光周期性扫过标题'],
+   ['swDoodle', 'doodle', '标题上方一笔笔画出小涂鸦'],
+   ['swSpectrum', 'spectrum', '有背景音乐时，卡面底部随旋律跳动'],
+   ['swShake', 'shake', '收卡人摇一摇手机，漫天彩带（会请求传感器权限）']
+  ].forEach(function (pair) {
+    var el = els[pair[0]], key = pair[1];
+    if (!el) return;
+    el.checked = state[key] === 'on';
+    el.addEventListener('change', function () {
+      state[key] = el.checked ? 'on' : 'off';
+      scheduleSync();
+    });
+  });
+
+  /* ---------- 藏头诗：四句藏一个吉祥话，点选直接填进祝福语 ---------- */
+  if (els.poemBtn && els.poemRow) {
+    C.POEMS.forEach(function (poem) {
+      var label = document.createElement('label');
+      label.className = 'pill';
+      var input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'poem';
+      input.value = poem.label;
+      var span = document.createElement('span');
+      span.textContent = poem.label;
+      span.title = poem.text.replace(/\n/g, ' / ');
+      label.appendChild(input);
+      label.appendChild(span);
+      input.addEventListener('change', function () {
+        if (!input.checked) return;
+        state.message = poem.text;
+        els.message.value = poem.text;
+        dirty.message = true;
+        updateCount();
+        input.checked = false; // 清掉选中态：同一首下次点选仍会触发
+        els.poemRow.hidden = true;
+        scheduleSync();
+        window.Hanabi.toast('已填入藏头诗「' + poem.label + '」，可再润色');
+      });
+      els.poemRow.appendChild(label);
+    });
+    els.poemBtn.addEventListener('click', function () {
+      els.poemRow.hidden = !els.poemRow.hidden;
+    });
+  }
+
+  /* ---------- 主题选项（方形色片） ---------- */  TH.list().forEach(function (t) {
     var label = document.createElement('label');
     label.className = 'theme-card';
     var input = document.createElement('input');
@@ -351,12 +499,19 @@
 
   /* 同步所有单选组的选中态（模板/手气改状态后调用） */
   function markChecks() {
-    ['occasion', 'theme', 'effect', 'font', 'prank'].forEach(function (group) {
+    ['occasion', 'layout', 'opening', 'oracle', 'gate', 'theme', 'effect', 'font', 'prank'].forEach(function (group) {
       var inputs = document.querySelectorAll('input[name="' + group + '"]');
       inputs.forEach(function (inp) {
         inp.checked = inp.value === state[group];
       });
     });
+    /* 细节开关跟着状态走（模板/手气可能整体改写配置） */
+    [['swTrail', 'trail'], ['swShine', 'shine'], ['swDoodle', 'doodle'], ['swSpectrum', 'spectrum'], ['swShake', 'shake']]
+      .forEach(function (pair) {
+        var el = els[pair[0]];
+        if (el) el.checked = state[pair[1]] === 'on';
+      });
+    applyPreviewShell();
     markSwatches(els.accentRow, 'accent', els.accentCustom);
     markSwatches(els.bgRow, 'bg', els.bgCustom);
     els.fDensity.value = Math.round(state.density * 100);
@@ -444,7 +599,7 @@
   });
 
   /* ============================================================
-   * 照片：选一张 -> 本地压缩（长边 ≤1024，质量逐档尝试） ->
+   * 照片：可多选（最多 6 张）-> 本地压缩（长边逐档、总预算分摊）->
    * 尽量压进链接限额；放不进时提示走「贺卡文件」。
    * ============================================================ */
   function compressPhoto(img, maxSide, quality) {
@@ -456,57 +611,189 @@
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     return c.toDataURL('image/jpeg', quality);
   }
+  function photoSizes() {
+    var kb = 0;
+    state.photos.forEach(function (p) { kb += Math.round(p.length * 3 / 4 / 1024); });
+    return kb;
+  }
   function updatePhotoUI() {
-    var isOn = !!state.photo;
-    els.photoThumb.hidden = !isOn;
-    els.photoDel.hidden = !isOn;
-    els.photoUp.textContent = isOn ? '换一张' : '选一张照片';
-    if (isOn) {
-      els.photoThumb.src = state.photo;
-      var kb = Math.round(state.photo.length * 3 / 4 / 1024);
-      var tooBig = state.photo.length > C.LINK_PHOTO_CHARS;
-      els.photoMeta.textContent = '已就位 · 约' + kb + 'KB' +
-        (tooBig ? ' · 链接装不下，用「贺卡文件」寄' : ' · 随链接送达');
+    var n = state.photos.length;
+    els.photoStrip.textContent = '';
+    state.photos.forEach(function (src, i) {
+      var cell = document.createElement('div');
+      cell.className = 'photo-cell';
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = '照片 ' + (i + 1);
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = '×';
+      x.title = '移除这张';
+      x.addEventListener('click', function () {
+        state.photos.splice(i, 1);
+        syncPhotoState();
+      });
+      cell.appendChild(img);
+      cell.appendChild(x);
+      els.photoStrip.appendChild(cell);
+    });
+    els.photoStrip.hidden = !n;
+    els.photoDel.hidden = !n;
+    els.photoTint.hidden = !n;
+    els.photoUp.textContent = n ? ('再加一张（' + n + '/' + C.PHOTO_MAX_COUNT + '）') : '添加照片';
+    els.photoUp.disabled = n >= C.PHOTO_MAX_COUNT;
+    if (n) {
+      var kb = photoSizes();
+      var tooBig = false, total = 0;
+      state.photos.forEach(function (p) { total += p.length; });
+      tooBig = total > C.LINK_PHOTO_CHARS;
+      els.photoMeta.textContent = '已选 ' + n + ' 张 · 约' + kb + 'KB' +
+        (tooBig ? ' · 超出链接限额，用「贺卡文件」寄' : ' · 随链接送达');
     } else {
       els.photoMeta.textContent = '不放照片，纯净文字';
     }
   }
-  els.photoUp.addEventListener('click', function () { els.photoFile.click(); });
-  els.photoFile.addEventListener('change', function () {
-    var f = els.photoFile.files && els.photoFile.files[0];
-    if (!f) return;
-    if (!/^image\//.test(f.type || '')) { window.Hanabi.toast('请选择图片文件'); return; }
-    var fr = new FileReader();
-    fr.onload = function () {
-      var img = new Image();
-      img.onload = function () {
-        /* 由高到低逐档压缩，第一档装进链接限额就用它 */
-        var tries = [[1024, 0.82], [900, 0.72], [800, 0.62], [680, 0.52], [560, 0.45]];
-        var data = '';
-        for (var i = 0; i < tries.length; i++) {
-          data = compressPhoto(img, tries[i][0], tries[i][1]);
-          if (data.length <= C.LINK_PHOTO_CHARS) break;
-        }
-        if (data.length > C.PHOTO_MAX_CHARS) {
-          window.Hanabi.toast('照片太大压不下来，换一张试试');
-          return;
-        }
-        state.photo = data;
-        updatePhotoUI();
-        scheduleSync();
-        window.Hanabi.toast('照片已就位，会以拍立得出现在贺卡里');
-      };
-      img.onerror = function () { window.Hanabi.toast('这张图片读不出来，换一张试试'); };
-      img.src = String(fr.result);
-    };
-    fr.readAsDataURL(f);
-  });
-  els.photoDel.addEventListener('click', function () {
-    state.photo = '';
-    els.photoFile.value = '';
+  function syncPhotoState() {
+    /* 单张旧字段同步为首张，兼容邮件模板与旧草稿 */
+    state.photo = state.photos[0] || '';
     updatePhotoUI();
     scheduleSync();
+  }
+  els.photoUp.addEventListener('click', function () { els.photoFile.click(); });
+  els.photoFile.addEventListener('change', function () {
+    var files = Array.prototype.slice.call((els.photoFile.files || []));
+    if (!files.length) return;
+    var room = C.PHOTO_MAX_COUNT - state.photos.length;
+    if (room <= 0) { window.Hanabi.toast('最多 ' + C.PHOTO_MAX_COUNT + ' 张照片'); return; }
+    files = files.slice(0, room);
+    var imgs = [], failed = 0;
+    files.forEach(function (f) {
+      if (!/^image\//.test(f.type || '')) { failed++; return; }
+      imgs.push(f);
+    });
+    if (!imgs.length) { window.Hanabi.toast('请选择图片文件'); return; }
+    var loaded = 0, results = [];
+    imgs.forEach(function (f, idx) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          results[idx] = { img: img, ok: true };
+          if (++loaded === imgs.length) addPhotos(results, failed);
+        };
+        img.onerror = function () {
+          results[idx] = { ok: false };
+          if (++loaded === imgs.length) addPhotos(results, failed);
+        };
+        img.src = String(fr.result);
+      };
+      fr.onerror = function () {
+        results[idx] = { ok: false };
+        if (++loaded === imgs.length) addPhotos(results, failed);
+      };
+      fr.readAsDataURL(f);
+    });
   });
+  function addPhotos(results, failed) {
+    var added = 0, budget = C.PHOTO_MAX_CHARS;
+    state.photos.forEach(function (p) { budget -= p.length; });
+    results.forEach(function (r) {
+      if (!r || !r.ok || budget <= 0) return;
+      /* 由高到低逐档压缩，第一档同时满足单张链接限额与剩余总预算就用它 */
+      var perLink = Math.max(40000, Math.floor(C.LINK_PHOTO_CHARS / C.PHOTO_MAX_COUNT));
+      var tries = [[1024, 0.82], [900, 0.72], [800, 0.62], [680, 0.52], [560, 0.45]];
+      var data = '';
+      for (var i = 0; i < tries.length; i++) {
+        data = compressPhoto(r.img, tries[i][0], tries[i][1]);
+        if (data.length <= perLink) break;
+      }
+      if (data.length > budget) return;
+      state.photos.push(data);
+      budget -= data.length;
+      added++;
+    });
+    els.photoFile.value = '';
+    if (added) {
+      syncPhotoState();
+      maybeAutoTint();
+      window.Hanabi.toast('照片已就位，会以拍立得出现在贺卡里');
+    } else {
+      window.Hanabi.toast(failed ? '这些图片读不出来，换一张试试' : '照片太大压不下来，换一张试试');
+    }
+  }
+  els.photoDel.addEventListener('click', function () {
+    state.photos = [];
+    els.photoFile.value = '';
+    syncPhotoState();
+  });
+
+  /* ---------- 照片自动取色：从第一张照片提取主色，套给强调色与背景色 ---------- */
+  function extractPalette(dataUri, cb) {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var s = 48;
+        var c = document.createElement('canvas');
+        c.width = s; c.height = s;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, s, s);
+        var d = ctx.getImageData(0, 0, s, s).data;
+        /* 量化到 4×4×4 色桶计数，取出现最多的桶再求平均，
+         * 并剔除太亮/太暗的桶（不适合当点缀色） */
+        var buckets = {};
+        for (var i = 0; i < d.length; i += 4) {
+          var r = d[i], g = d[i + 1], b = d[i + 2];
+          var key = (r >> 6) + ',' + (g >> 6) + ',' + (b >> 6);
+          var bk = buckets[key] || (buckets[key] = { n: 0, r: 0, g: 0, b: 0 });
+          bk.n++; bk.r += r; bk.g += g; bk.b += b;
+        }
+        var best = null;
+        Object.keys(buckets).forEach(function (k) {
+          var bk = buckets[k];
+          var ar = bk.r / bk.n, ag = bk.g / bk.n, ab = bk.b / bk.n;
+          var lum = 0.2126 * ar + 0.7152 * ag + 0.0722 * ab;
+          if (lum < 46 || lum > 236) return;
+          /* 频次为主，饱和度轻微加权，让颜色更"有性格" */
+          var mx = Math.max(ar, ag, ab), mn = Math.min(ar, ag, ab);
+          var sat = mx === 0 ? 0 : (mx - mn) / mx;
+          var score = bk.n * (1 + sat * 0.6);
+          if (!best || score > best.score) {
+            best = { score: score, r: ar, g: ag, b: ab };
+          }
+        });
+        if (!best) { cb(null); return; }
+        function hx(n) { var s2 = Math.round(n).toString(16); return s2.length < 2 ? '0' + s2 : s2; }
+        var accent = '#' + hx(best.r) + hx(best.g) + hx(best.b);
+        /* 背景用同一色相向纸白拉近，保证正文可读 */
+        function mix(a, t) { return Math.round(a + (255 - a) * t); }
+        var bg = '#' + hx(mix(best.r, 0.86)) + hx(mix(best.g, 0.86)) + hx(mix(best.b, 0.86));
+        cb({ accent: accent, bg: bg });
+      } catch (e) { cb(null); }
+    };
+    img.onerror = function () { cb(null); };
+    img.src = dataUri;
+  }
+  function maybeAutoTint() {
+    /* 只在用户还没手动挑过颜色时自动套一次，不抢人的选择 */
+    if (state.accent || state.bg) return;
+    applyTint(true);
+  }
+  function applyTint(silent) {
+    if (!state.photos.length) return;
+    extractPalette(state.photos[0], function (pal) {
+      if (!pal) {
+        if (!silent) window.Hanabi.toast('这张照片提取不出颜色，换一张试试');
+        return;
+      }
+      state.accent = pal.accent;
+      state.bg = pal.bg;
+      markSwatches(els.accentRow, 'accent', els.accentCustom);
+      markSwatches(els.bgRow, 'bg', els.bgCustom);
+      scheduleSync();
+      if (!silent) window.Hanabi.toast('已按照片配色：强调色与背景色都换了');
+    });
+  }
+  els.photoTint.addEventListener('click', function () { applyTint(false); });
 
   /* ============================================================
    * 语音祝福：现场录一段（≤60 秒），点开贺卡先闻其声。
@@ -516,7 +803,9 @@
   var voiceAudio = null;
   var REC_MIME = (function () {
     if (!window.MediaRecorder) return '';
-    var candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    /* mp4/aac 各端都能播（安卓录、iPhone 收也不翻车），排在 webm/opus 前；
+     * 不支持 mp4 录制的浏览器（如 Firefox）再退回 webm/opus */
+    var candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
     for (var i = 0; i < candidates.length; i++) {
       try { if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i]; } catch (e) { /* 忽略 */ }
     }
@@ -551,7 +840,11 @@
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       mediaStream = stream;
       recChunks = [];
-      try { mediaRec = REC_MIME ? new MediaRecorder(stream, { mimeType: REC_MIME }) : new MediaRecorder(stream); }
+      try {
+        mediaRec = REC_MIME
+          ? new MediaRecorder(stream, { mimeType: REC_MIME, audioBitsPerSecond: 48000 })
+          : new MediaRecorder(stream);
+      }
       catch (e) { mediaRec = new MediaRecorder(stream); }
       mediaRec.ondataavailable = function (e) { if (e.data && e.data.size) recChunks.push(e.data); };
       mediaRec.onstop = function () {
@@ -785,7 +1078,17 @@
     var s = Object.assign({}, state);
     if (s.music !== 'off' && s.music.length > C.LINK_MUSIC_CHARS) s.music = 'off';
     if (s.voice !== 'off' && s.voice.length > C.LINK_VOICE_CHARS) s.voice = 'off';
-    if (s.photo && s.photo.length > C.LINK_PHOTO_CHARS) s.photo = '';
+    /* 照片按链接总预算从前往后装，装不下的丢掉（导出文件仍全量携带） */
+    if (Array.isArray(s.photos) && s.photos.length) {
+      var kept = [], total = 0;
+      s.photos.forEach(function (p) {
+        if (total + p.length <= C.LINK_PHOTO_CHARS) { kept.push(p); total += p.length; }
+      });
+      s.photos = kept;
+      s.photo = kept[0] || '';
+    } else if (s.photo && s.photo.length > C.LINK_PHOTO_CHARS) {
+      s.photo = '';
+    }
     if (s.custom !== 'off' && s.custom.length > C.LINK_CUSTOM_CHARS) s.custom = 'off';
     return s;
   }
@@ -831,8 +1134,7 @@
   function scheduleSync() {
     clearTimeout(syncTimer);
     syncTimer = setTimeout(function () {
-      syncNow();
-      saveDraft(); // 只在用户改动后存草稿，首次装载不存
+      syncNow(); // syncNow 末尾已存草稿，不必对 localStorage 重复写一遍
     }, 140);
   }
   var sentCustom = null; // 上次推给预览的信笺原文（体积大，仅变化时发送）
@@ -843,6 +1145,11 @@
       if (d.music !== 'off' && d.music.length > 200000) d.music = 'off';
       if (d.voice !== 'off' && d.voice.length > 200000) d.voice = 'off';
       if (d.photo && d.photo.length > 200000) d.photo = '';
+      var pTotal = 0;
+      d.photos = (Array.isArray(d.photos) ? d.photos : []).filter(function (p) {
+        pTotal += p.length;
+        return pTotal <= 200000;
+      });
       if (d.custom !== 'off' && d.custom.length > 200000) d.custom = 'off';
       localStorage.setItem('hanabi-draft-v1', JSON.stringify(d));
     } catch (e) { /* 空间不足等，静默忽略 */ }
@@ -875,6 +1182,9 @@
     saveDraft();
   }
   window.addEventListener('message', function (ev) {
+    /* 只接受自家预览 iframe 的消息；file:// 下 origin 序列化不可靠，认窗口不认源 */
+    if (ev.source !== els.iframe.contentWindow) return;
+    if (location.protocol !== 'file:' && ev.origin !== location.origin) return;
     var d = ev.data;
     if (d && d.type === 'hanabi-ready') {
       previewReady = true;
@@ -896,6 +1206,73 @@
   }
 
   /* ============================================================
+   * 寄出保护：密语解锁 + 定时开启。
+   * 密语只存在编辑器内存（绝不写进配置/草稿/链接明文），
+   * 生成链接时现场把配置 AES-GCM 加密成 k1. 代码；
+   * 定时是普通字段 unlockAt（epoch 毫秒），播放端到点前盖倒计时门。
+   * ============================================================ */
+  var passphrase = '';
+  function fmtUnlockInput(ms) {
+    if (!ms) return '';
+    var d = new Date(ms);
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function refreshGuardUI() {
+    els.passState.textContent = passphrase ? '已设置 · 寄出时加密' : '未设置';
+    els.passState.classList.toggle('sel', !!passphrase);
+    if (state.unlockAt) {
+      var left = state.unlockAt - Date.now();
+      if (left <= 0) {
+        els.unlockState.textContent = '已过时 · 卡片现在就能开';
+      } else {
+        var h = Math.floor(left / 3600000);
+        var dText = Math.floor(h / 24);
+        els.unlockState.textContent = dText > 0
+          ? (dText + ' 天 ' + (h % 24) + ' 小时后开启')
+          : (h > 0 ? (h + ' 小时后开启') : Math.max(1, Math.floor(left / 60000)) + ' 分钟后开启');
+      }
+    } else {
+      els.unlockState.textContent = '不限时';
+    }
+    els.unlockState.classList.toggle('sel', !!state.unlockAt);
+  }
+  if (state.unlockAt) els.fUnlock.value = fmtUnlockInput(state.unlockAt);
+  els.fPass.addEventListener('input', function () {
+    passphrase = els.fPass.value.trim().slice(0, 32);
+    refreshGuardUI();
+  });
+  els.fUnlock.addEventListener('change', function () {
+    var v = els.fUnlock.value;
+    var t = v ? new Date(v).getTime() : 0;
+    if (!v || isNaN(t)) { state.unlockAt = 0; }
+    else if (t <= Date.now()) {
+      state.unlockAt = 0;
+      els.fUnlock.value = '';
+      window.Hanabi.toast('这个时间已经过去啦，选个将来的时间');
+    } else {
+      state.unlockAt = Math.floor(t);
+      window.Hanabi.toast('到点前，对方打开只会看到倒计时');
+    }
+    refreshGuardUI();
+    scheduleSync();
+  });
+  refreshGuardUI();
+
+  /* 统一的"寄出代码"：有密语 -> 加密 k1；无密语 -> 明文 base64url。
+   * 链接族（链接/邮件/短信/新窗/二维码/长图）走 linkableState，
+   * 导出文件走全量 state（文件没有体积限制）。 */
+  function sendCode(full) {
+    var base = full ? state : linkableState();
+    if (!passphrase) return Promise.resolve(C.toHash(base));
+    return C.encryptWithPass(base, passphrase);
+  }
+  function sendLink(full) {
+    return sendCode(full).then(function (code) { return C.buildCardURLCode(code); });
+  }
+
+  /* ============================================================
    * 寄出：贺卡链接 / 贺卡文件 / 祝福邮件 / 邮件应用
    * ============================================================ */
   els.gen.addEventListener('click', function () {
@@ -906,81 +1283,83 @@
       return;
     }
     /* 音乐/语音/照片超限时自动降级：链接里去掉，文件通道仍完整携带 */
-    var share = Object.assign({}, state);
     var stripped = [];
-    if (share.music !== 'off' && share.music.length > C.LINK_MUSIC_CHARS) {
-      share.music = 'off';
-      stripped.push('音乐');
-    }
-    if (share.voice !== 'off' && share.voice.length > C.LINK_VOICE_CHARS) {
-      share.voice = 'off';
-      stripped.push('语音');
-    }
-    if (share.photo && share.photo.length > C.LINK_PHOTO_CHARS) {
-      share.photo = '';
-      stripped.push('照片');
-    }
-    var link = C.buildCardURL(share);
-    els.linkBox.hidden = false;
-    els.linkInput.value = link;
-    els.stripTip.hidden = !stripped.length;
-    if (stripped.length) {
-      els.stripTip.textContent = stripped.join('、') + '超过了链接的承载上限，链接里已去掉；用「贺卡文件」寄出即可一分不少。';
-    }
-    if (location.protocol === 'file:') els.fileTip.hidden = false;
-    /* 签语预览：这张卡的帖号与签语 */
-    var fortune = C.fortuneOf(C.toHash(share));
-    els.fortunePrev.hidden = false;
-    els.fortunePrev.textContent = '';
-    var noEl = document.createElement('b');
-    noEl.textContent = fortune.no;
-    els.fortunePrev.appendChild(noEl);
-    els.fortunePrev.appendChild(document.createTextNode('第 ' + fortune.no.slice(3) + ' 签 · ' + fortune.text));
-    window.Hanabi.copyText(link,
-      function () {
-        window.Hanabi.toast(stripped.length ? '链接已生成（不含' + stripped.join('、') + '）' : '链接已生成，已复制到剪贴板');
-      },
-      function () { window.Hanabi.toast('链接已生成，请点击"复制"按钮'); }
-    );
+    if (state.music !== 'off' && state.music.length > C.LINK_MUSIC_CHARS) stripped.push('音乐');
+    if (state.voice !== 'off' && state.voice.length > C.LINK_VOICE_CHARS) stripped.push('语音');
+    var sLink = linkableState();
+    if (!sLink.photos.length && state.photos.length) stripped.push('照片');
+    else if (sLink.photos.length < state.photos.length) stripped.push('部分照片');
+    if (sLink.custom === 'off' && state.custom !== 'off') stripped.push('信笺');
+    sendCode(false).then(function (code) {
+      var link = C.buildCardURLCode(code);
+      els.linkBox.hidden = false;
+      els.linkInput.value = link;
+      els.stripTip.hidden = !stripped.length;
+      if (stripped.length) {
+        els.stripTip.textContent = stripped.join('、') + '超过了链接的承载上限，链接里已去掉；用「贺卡文件」寄出即可一分不少。';
+      }
+      if (location.protocol === 'file:') els.fileTip.hidden = false;
+      /* 签语预览：这张卡的帖号与签语（与播放端同一推导） */
+      var fortune = C.fortuneOf(code);
+      els.fortunePrev.hidden = false;
+      els.fortunePrev.textContent = '';
+      var noEl = document.createElement('b');
+      noEl.textContent = fortune.no;
+      els.fortunePrev.appendChild(noEl);
+      els.fortunePrev.appendChild(document.createTextNode('第 ' + fortune.no.slice(3) + ' 签 · ' + fortune.text));
+      window.Hanabi.copyText(link,
+        function () {
+          var msg = stripped.length ? '链接已生成（不含' + stripped.join('、') + '）' : '链接已生成，已复制到剪贴板';
+          if (passphrase) msg += '；记得把密语也告诉 TA';
+          window.Hanabi.toast(msg);
+        },
+        function () { window.Hanabi.toast('链接已生成，请点击"复制"按钮'); }
+      );
+    }).catch(function () {
+      window.Hanabi.toast('加密失败：这个浏览器不支持，请改用「贺卡文件」寄出');
+    });
   });
 
-  /* 导出独立贺卡文件：内嵌全部样式/脚本/配置/音频，离线双击即播 */
+  /* 导出独立贺卡文件：内嵌全部样式/脚本/配置/音频，离线双击即播。
+   * 设了密语时配置同样以 k1 加密内嵌，文件也要答对密语才播。 */
   els.exportBtn.addEventListener('click', function () {
-    var embed = { code: C.toHash(state), music: state.music };
-    function fetchText(url) {
-      return fetch(url).then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      });
-    }
-    Promise.all([
-      fetchText('card.html'),
-      fetchText('css/style.css'),
-      fetchText('js/config.js'),
-      fetchText('js/effects.js'),
-      fetchText('js/themes.js'),
-      fetchText('js/player.js')
-    ]).then(function (res) {
-      var html = res[0];
-      /* 配置与音频以 JSON 注入，'<' 转义防止破坏 <script> 结构 */
-      var boot = '<script>window.__HANABI_EMBED__ = ' +
-        JSON.stringify(embed).replace(/</g, '\\u003c') + '</script>\n';
-      html = html.replace('<link rel="stylesheet" href="css/style.css">', '<style>\n' + res[1] + '\n</style>');
-      html = html.replace('<script src="js/config.js"></script>', '<script>\n' + res[2] + '\n</script>');
-      html = html.replace('<script src="js/effects.js"></script>', '<script>\n' + res[3] + '\n</script>');
-      html = html.replace('<script src="js/themes.js"></script>', '<script>\n' + res[4] + '\n</script>');
-      html = html.replace('<script src="js/player.js"></script>', boot + '<script>\n' + res[5] + '\n</script>');
-      if (html.indexOf('__HANABI_EMBED__') < 0) throw new Error('template mismatch');
+    sendCode(true).then(function (code) {
+      var embed = { code: code, music: state.music };
+      function fetchText(url) {
+        return fetch(url).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        });
+      }
+      return Promise.all([
+        fetchText('card.html'),
+        fetchText('css/style.css'),
+        fetchText('js/config.js'),
+        fetchText('js/effects.js'),
+        fetchText('js/themes.js'),
+        fetchText('js/player.js')
+      ]).then(function (res) {
+        var html = res[0];
+        /* 配置与音频以 JSON 注入，'<' 转义防止破坏 <script> 结构 */
+        var boot = '<script>window.__HANABI_EMBED__ = ' +
+          JSON.stringify(embed).replace(/</g, '\\u003c') + '</script>\n';
+        html = html.replace('<link rel="stylesheet" href="css/style.css">', '<style>\n' + res[1] + '\n</style>');
+        html = html.replace('<script src="js/config.js"></script>', '<script>\n' + res[2] + '\n</script>');
+        html = html.replace('<script src="js/effects.js"></script>', '<script>\n' + res[3] + '\n</script>');
+        html = html.replace('<script src="js/themes.js"></script>', '<script>\n' + res[4] + '\n</script>');
+        html = html.replace('<script src="js/player.js"></script>', boot + '<script>\n' + res[5] + '\n</script>');
+        if (html.indexOf('__HANABI_EMBED__') < 0) throw new Error('template mismatch');
 
-      var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = '花火贺卡·给' + (state.to || '你') + '.html';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-      window.Hanabi.toast('贺卡文件已导出，直接发给 TA 即可');
+        var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '花火贺卡·给' + (state.to || '你') + '.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        window.Hanabi.toast(passphrase ? '贺卡文件已导出（已加密，记得给 TA 密语）' : '贺卡文件已导出，直接发给 TA 即可');
+      });
     }).catch(function () {
       window.Hanabi.toast('导出失败：请在部署后的网站上使用');
     });
@@ -1008,14 +1387,15 @@
   }
 
   /* 邮件正文：有信笺用信笺（占位符替换后，附"打开贺卡"按钮），
-   * 无信笺用内置「花火夜帖」邮件版式。预览与复制共用同一构造。 */
-  function buildMailBody() {
-    var cardLink = C.buildCardURL(linkableState());
+   * 无信笺用内置「花火夜帖」邮件版式。预览与复制共用同一构造。
+   * link 省略时用明文链接（预览用）；复制/写邮件时传加密后的链接。 */
+  function buildMailBody(link) {
+    if (!link) link = C.buildCardURL(linkableState());
     var btnHtml = '<div style="text-align:center;padding:20px 0 6px;">' +
-      '<a href="' + cardLink + '" target="_blank" style="display:inline-block;background:#232520;' +
+      '<a href="' + link + '" target="_blank" style="display:inline-block;background:#232520;' +
       'color:#fbfaf7;padding:14px 34px;border-radius:10px;text-decoration:none;' +
       'font-weight:600;font-size:14px;letter-spacing:3px;">打开会动的贺卡 ›</a></div>';
-    if (state.custom === 'off') return C.buildEmailHtml(state, cardLink);
+    if (state.custom === 'off') return C.buildEmailHtml(state, link);
     var letter = C.applyPlaceholders(state.custom, state);
     /* 整页文档取 body 内部（含其中的 <style>）；片段则直接使用 */
     var m = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(letter);
@@ -1023,49 +1403,252 @@
     return '<div style="margin:0;padding:12px;">' + inner + btnHtml + '</div>';
   }
   els.mailCopyBtn.addEventListener('click', function () {
-    copyRich(buildMailBody(),
-      function () { window.Hanabi.toast('邮件已复制，去邮箱正文里粘贴即可'); },
-      function () { window.Hanabi.toast('复制失败，请改用「导出贺卡文件」'); });
+    sendLink(false).then(function (link) {
+      copyRich(buildMailBody(link),
+        function () { window.Hanabi.toast('邮件已复制，去邮箱正文里粘贴即可'); },
+        function () { window.Hanabi.toast('复制失败，请改用「导出贺卡文件」'); });
+    });
   });
   els.mailBtn.addEventListener('click', function () {
-    var link = C.buildCardURL(linkableState());
     var addr = els.mailTo.value.trim();
-    location.href = C.buildMailto(addr, state, link);
+    sendLink(false).then(function (link) {
+      location.href = C.buildMailto(addr, state, link);
+    });
   });
   /* 短信通道：唤起系统短信应用（号码可留空） */
   els.smsBtn.addEventListener('click', function () {
-    var link = C.buildCardURL(linkableState());
     var phone = els.smsTo.value.replace(/[^\d+]/g, '');
-    var body = '有一张给「' + state.to + '」的贺卡，点开就能看：' + link;
-    location.href = 'sms:' + phone + '?&body=' + encodeURIComponent(body);
+    sendLink(false).then(function (link) {
+      var body = '有一张给「' + state.to + '」的贺卡，点开就能看：' + link;
+      location.href = 'sms:' + phone + '?&body=' + encodeURIComponent(body);
+    });
   });
-  /* 实体贺卡：排好版的对折卡面，交给打印机 */
+  /* 实体贺卡：排好版的对折卡面，交给打印机。
+   * 链接足够短且没用自定义信笺时，封面上附一枚二维码，扫了直达贺卡。 */
+  function qrDataUrl(text) {
+    if (!window.qrcode) return '';
+    /* 从最小版本往上试，装下为止 */
+    for (var t = 1; t <= 40; t++) {
+      try {
+        var q = window.qrcode(t, 'M');
+        q.addData(text);
+        q.make();
+        return q.createDataURL(4, 12);
+      } catch (e) { /* 装不下，换更大的版本 */ }
+    }
+    return '';
+  }
+  function qrUsable(link) {
+    /* 长图/打印上的码要能被普通相机扫出来：限长 + 不为自定义信笺 */
+    return state.custom === 'off' && link.length < 2900;
+  }
   els.printBtn.addEventListener('click', function () {
-    var sheet = document.getElementById('printSheet');
-    var msgText = C.splitMessage(state.message).join('\n');
-    var d = new Date();
-    var dateStr = d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
-    sheet.innerHTML =
-      '<div class="ps-page">' +
-        '<div class="ps-mark">HANABI · 花火贺卡</div>' +
-        '<div class="ps-title">' + C.escapeHtml(state.title) + '</div>' +
-        '<div class="ps-to">致 ' + C.escapeHtml(state.to) + '</div>' +
-        '<div class="ps-cover-foot">' + C.editionOf(C.toHash(linkableState())) + '</div>' +
-      '</div>' +
-      '<div class="ps-page ps-inner">' +
-        '<div class="ps-msg">' + C.escapeHtml(msgText) + '</div>' +
-        '<div class="ps-line"></div>' +
-        '<div class="ps-from">' + C.escapeHtml(state.from) + '</div>' +
-        '<div class="ps-cover-foot">' + dateStr + '</div>' +
-      '</div>';
-    document.body.classList.add('printing');
-    window.print();
-    /* 有些浏览器 print() 同步返回，稍后兜底摘掉 printing */
-    setTimeout(function () { document.body.classList.remove('printing'); }, 800);
+    sendLink(false).then(function (link) {
+      var sheet = document.getElementById('printSheet');
+      var msgText = C.splitMessage(state.message).join('\n');
+      var d = new Date();
+      var dateStr = d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
+      var qrImg = '';
+      if (qrUsable(link)) {
+        var qr = qrDataUrl(link);
+        if (qr) qrImg = '<img class="ps-qr" src="' + qr + '" alt="扫码打开贺卡">';
+      }
+      sheet.innerHTML =
+        '<div class="ps-page">' +
+          '<div class="ps-mark">HANABI · 花火贺卡</div>' +
+          '<div class="ps-title">' + C.escapeHtml(state.title) + '</div>' +
+          '<div class="ps-to">致 ' + C.escapeHtml(state.to) + '</div>' +
+          qrImg +
+          '<div class="ps-cover-foot">' + C.editionOf(C.toHash(linkableState())) + '</div>' +
+        '</div>' +
+        '<div class="ps-page ps-inner">' +
+          '<div class="ps-msg">' + C.escapeHtml(msgText) + '</div>' +
+          '<div class="ps-line"></div>' +
+          '<div class="ps-from">' + C.escapeHtml(state.from) + '</div>' +
+          '<div class="ps-cover-foot">' + dateStr + '</div>' +
+        '</div>';
+      document.body.classList.add('printing');
+      window.print();
+      /* 有些浏览器 print() 同步返回，稍后兜底摘掉 printing */
+      setTimeout(function () { document.body.classList.remove('printing'); }, 800);
+    });
   });
   window.addEventListener('afterprint', function () {
     document.body.classList.remove('printing');
   });
+
+  /* ---------- 分享长图：卡面祝福 + 首张照片 + 二维码，合成一张竖图 ---------- */
+  var SONG = "'Songti SC','Noto Serif SC','STSong','STZhongsong','SimSun',serif";
+  var KAI = "'Kaiti SC','STKaiti','KaiTi','FZKai-Z03S',serif";
+  var MONO = "ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace";
+  function mixHex(a, b, t) {
+    function rgb(h) {
+      var m = /^#?([0-9a-f]{6})$/i.exec(h || '');
+      var n = m ? parseInt(m[1], 16) : 0xffffff;
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    var A = rgb(a), B = rgb(b), o = '#';
+    for (var i = 0; i < 3; i++) {
+      var v = Math.round(A[i] + (B[i] - A[i]) * t).toString(16);
+      o += v.length < 2 ? '0' + v : v;
+    }
+    return o;
+  }
+  function lumOf(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return 1;
+    var n = parseInt(m[1], 16);
+    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  }
+  function wrapLines(g, text, maxW) {
+    var lines = [], line = '';
+    var chars = String(text).split('');
+    for (var i = 0; i < chars.length; i++) {
+      var ch = chars[i];
+      if (ch === '\n') { lines.push(line); line = ''; continue; }
+      if (line && g.measureText(line + ch).width > maxW) { lines.push(line); line = ch; }
+      else line += ch;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function loadImg(src) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () { res(im); };
+      im.onerror = function () { rej(new Error('图片载入失败')); };
+      im.src = src;
+    });
+  }
+  els.shareBtn.addEventListener('click', function () {
+    sendCode(false).then(function (code) {
+      var link = C.buildCardURLCode(code);
+      var fortune = C.fortuneOf(code);
+      var th = TH.get(state.theme);
+      var bg = state.bg || th.vars['--bg-0'] || '#faf9f4';
+      var accent = state.accent || th.vars['--accent'] || '#5f7d72';
+      var dark = state.bg ? lumOf(bg) < 0.5 : th.light === false;
+      var ink = dark ? '#f0ead9' : '#26281f';
+      var inkSoft = dark ? 'rgba(240,234,217,.74)' : 'rgba(38,40,31,.74)';
+      var inkFaint = dark ? 'rgba(240,234,217,.5)' : 'rgba(38,40,31,.5)';
+      var hair = dark ? 'rgba(240,234,217,.22)' : 'rgba(38,40,31,.16)';
+      var qrSrc = qrUsable(link) ? qrDataUrl(link) : '';
+      var jobs = [state.photos.length ? loadImg(state.photos[0]) : Promise.resolve(null)];
+      jobs.push(qrSrc ? loadImg(qrSrc) : Promise.resolve(null));
+      return Promise.all(jobs).then(function (imgs) {
+        var photoImg = imgs[0], qrImg = imgs[1];
+        var W = 750, H = 1100, S = 2, M = 64;
+        var cv = document.createElement('canvas');
+        cv.width = W * S;
+        cv.height = H * S;
+        var g = cv.getContext('2d');
+        g.scale(S, S);
+        /* 背景：主题底色 + 纵向微渐变 */
+        var grad = g.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, bg);
+        grad.addColorStop(1, mixHex(bg, dark ? '#000000' : '#ffffff', 0.28));
+        g.fillStyle = grad;
+        g.fillRect(0, 0, W, H);
+        /* 页眉：标记 + 强调色短杠 */
+        g.fillStyle = accent;
+        g.font = '600 19px ' + MONO;
+        if ('letterSpacing' in g) g.letterSpacing = '6px';
+        g.fillText('HANABI · 花火贺卡', M, 92);
+        if ('letterSpacing' in g) g.letterSpacing = '0px';
+        g.fillRect(M, 112, 50, 4);
+        /* 收件人 + 标题 */
+        g.fillStyle = inkSoft;
+        g.font = '27px ' + KAI;
+        g.fillText('致 ' + (state.to || ''), M, 190);
+        g.fillStyle = ink;
+        g.font = '700 52px ' + SONG;
+        var tLines = wrapLines(g, state.title || '', W - M * 2).slice(0, 2);
+        var y = 254;
+        for (var ti = 0; ti < tLines.length; ti++) {
+          g.fillText(tLines[ti], M, y);
+          y += 66;
+        }
+        /* 首张照片：白边拍立得 */
+        var bodyTop = y + 18;
+        if (photoImg) {
+          var fw = W - M * 2;
+          var k = Math.min(fw / photoImg.width, 340 / photoImg.height);
+          var iw = Math.max(1, Math.round(photoImg.width * k));
+          var ih = Math.max(1, Math.round(photoImg.height * k));
+          var px = (W - iw) / 2, py = bodyTop + 12;
+          g.save();
+          g.shadowColor = 'rgba(0,0,0,.3)';
+          g.shadowBlur = 24;
+          g.shadowOffsetY = 10;
+          g.fillStyle = '#fffdf8';
+          g.fillRect(px - 12, py - 12, iw + 24, ih + 24);
+          g.restore();
+          g.drawImage(photoImg, px, py, iw, ih);
+          bodyTop = py + ih + 46;
+        } else {
+          bodyTop += 14;
+        }
+        /* 祝福正文（分页符视作空行），放不下就截断 */
+        var footY = H - 208;
+        var msgText = C.splitMessage(state.message).join('\n\n');
+        g.fillStyle = ink;
+        g.font = '29px ' + KAI;
+        var lines = wrapLines(g, msgText, W - M * 2);
+        var maxLines = Math.max(2, Math.floor((footY - 36 - bodyTop) / 48));
+        if (lines.length > maxLines) {
+          lines = lines.slice(0, maxLines);
+          lines[maxLines - 1] = lines[maxLines - 1].replace(/.$/, '…');
+        }
+        y = bodyTop;
+        for (var mi = 0; mi < lines.length; mi++) {
+          g.fillText(lines[mi], M, y);
+          y += 48;
+        }
+        if (y + 34 < footY) {
+          g.fillStyle = inkSoft;
+          g.font = '25px ' + SONG;
+          g.textAlign = 'right';
+          g.fillText('—— ' + (state.from || ''), W - M, y + 30);
+          g.textAlign = 'left';
+        }
+        /* 页脚：二维码 + 签语 + 帖号 */
+        g.strokeStyle = hair;
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(M, footY);
+        g.lineTo(W - M, footY);
+        g.stroke();
+        var fy = footY + 44;
+        if (qrImg) g.drawImage(qrImg, M, fy, 128, 128);
+        var tx = qrImg ? M + 128 + 28 : M;
+        g.fillStyle = accent;
+        g.font = '600 26px ' + SONG;
+        g.fillText(fortune.text, tx, fy + 34);
+        g.fillStyle = inkFaint;
+        g.font = '17px ' + MONO;
+        g.fillText('第 ' + fortune.no.slice(3) + ' 签 · ' + fortune.no, tx, fy + 70);
+        g.fillStyle = inkFaint;
+        g.font = '17px ' + MONO;
+        g.fillText(qrImg ? '扫码打开 · 会动的贺卡' : '由花火贺卡制作', tx, fy + 104);
+        cv.toBlob(function (blob) {
+          if (!blob) { window.Hanabi.toast('长图生成失败，换个浏览器试试'); return; }
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = '花火贺卡·分享长图.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+          window.Hanabi.toast(passphrase
+            ? '长图已下载（链接已加密，记得一并把密语给 TA）'
+            : '长图已下载，发朋友圈、聊天都合适');
+        }, 'image/png');
+      });
+    }).catch(function () {
+      window.Hanabi.toast('长图生成失败：请在部署后的网站上打开再试');
+    });
+  });
+
   /* 发送提醒：生成 .ics，明天 10:00 提醒寄出 */
   els.icsBtn.addEventListener('click', function () {
     var start = new Date(Date.now() + 86400000);
@@ -1122,7 +1705,11 @@
     }
   });
   els.popOutBtn.addEventListener('click', function () {
-    window.open(C.buildCardURL(linkableState()), '_blank');
+    sendLink(false).then(function (link) {
+      window.open(link, '_blank');
+    }).catch(function () {
+      window.Hanabi.toast('加密失败：这个浏览器不支持，试试「导出贺卡文件」');
+    });
   });
 
   /* ---------- 清空重填 ---------- */
@@ -1143,9 +1730,16 @@
     els.musicDel.hidden = true;
     els.musicUp.textContent = '上传音乐';
     els.musicTip.hidden = true;
+    state.photos = [];
     state.photo = '';
     els.photoFile.value = '';
     updatePhotoUI();
+    /* 寄出保护一并复位：密语只在内存里，清掉即忘 */
+    passphrase = '';
+    els.fPass.value = '';
+    els.fUnlock.value = '';
+    state.unlockAt = 0;
+    refreshGuardUI();
     stopVoicePreview();
     state.voice = 'off';
     updateVoiceUI(0);
@@ -1161,20 +1755,49 @@
   });
 
   /* ============================================================
-   * 手机壳等比缩放：iframe 逻辑尺寸 375×740，按可用宽度缩放
+   * 预览壳等比缩放：按当前壳（手机 375×740 / 显示器 1024×640）
+   * 的外框尺寸，把 iframe 缩放进预览栏可用宽度
    * ============================================================ */
-  var PHONE_W = 399; // 375 + 左右各 12px 边框
-  var PHONE_H = 764; // 740 + 上下各 12px 边框
-  function fitPhone() {
-    var avail = els.previewCol.clientWidth;
-    if (!avail) return;
-    var s = Math.min(1, (avail - 4) / PHONE_W);
-    els.phone.style.width = (PHONE_W * s).toFixed(1) + 'px';
-    els.phone.style.height = (PHONE_H * s).toFixed(1) + 'px';
-    els.iframe.style.transform = 'scale(' + s.toFixed(4) + ')';
+  var PHONE_W = 399;    // 375 + 左右各 12px 边框
+  var PHONE_H = 764;    // 740 + 上下各 12px 边框
+  var MONITOR_W = 1052; // 1024 + 左右各 14px 边框
+  var MONITOR_H = 688;  // 640 + 顶栏 34px + 底部 14px
+  function isWideLayout() {
+    return state.layout === 'scroll' || state.layout === 'folding';
   }
-  window.addEventListener('resize', fitPhone);
-  fitPhone();
+  /* 版式决定预览壳：电脑横屏版式换显示器壳，标注文字同步切换 */
+  function applyPreviewShell() {
+    var wide = isWideLayout();
+    els.phone.classList.toggle('monitor', wide);
+    if (els.previewCap) {
+      els.previewCap.textContent = wide ? '1024 × 640 · 电脑横屏 · 即时同步' : '375 × 740 · 即时同步';
+    }
+    fitPreview();
+  }
+  function fitPreview() {
+    var wide = els.phone.classList.contains('monitor');
+    var W = wide ? MONITOR_W : PHONE_W;
+    var H = wide ? MONITOR_H : PHONE_H;
+    var avail = els.previewCol.clientWidth;
+    if (window.matchMedia('(max-width: 920px)').matches) {
+      /* 单栏布局：预览列宽被壳自身撑大（自引用），直接量栅格可用宽 */
+      avail = els.previewCol.parentElement.clientWidth;
+    } else if (wide) {
+      /* 双栏布局下预览列是 auto 宽，会沿用手机壳撑出的旧宽度；
+       * 直接向栅格要空间：表单至少留 560px，显示器壳最宽 640px。 */
+      var colsW = els.previewCol.parentElement.clientWidth;
+      avail = Math.min(640, Math.max(300, colsW - 560 - 44));
+    }
+    if (!avail) return;
+    var s = Math.min(1, (avail - 4) / W);
+    els.phone.style.width = (W * s).toFixed(1) + 'px';
+    els.phone.style.height = (H * s).toFixed(1) + 'px';
+    els.iframe.style.transform = 'scale(' + s.toFixed(4) + ')';
+    if (els.previewBar) els.previewBar.style.maxWidth = (W * s).toFixed(1) + 'px';
+  }
+  window.addEventListener('resize', fitPreview);
+  fitPreview();
+  applyPreviewShell();
 
   /* ---------- 导航栏页签：每个页签一个功能，预览常驻 ---------- */
   var tabBtns = document.querySelectorAll('#tabs .tab');

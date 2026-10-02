@@ -67,7 +67,7 @@
           <section class="pane p-active" data-pane="tpl" aria-label="灵感模板">
             <div class="pane-head">
               <h3>灵感样式</h3>
-              <p>七套成品一键套用，套用后到「内容」「样式」页微调</p>
+              <p>九套成品一键套用，套用后到「内容」「样式」页微调</p>
             </div>
             <div class="tpl-grid" id="templateStrip"></div>
           </section>
@@ -92,22 +92,25 @@
             </div>
             <div class="msg-tools">
               <button class="btn btn-text btn-sm" id="blessBtn" type="button" title="从本地灵感库组合一句祝福">帮你起两句</button>
+              <button class="btn btn-text btn-sm" id="poemBtn" type="button" title="藏头诗：四句藏一个现成的吉祥话">藏头诗</button>
               <button class="btn btn-text btn-sm" id="pageBreakBtn" type="button" title="在光标处插入分页符，收卡人轻触翻页">插入分页</button>
               <span class="tip-inline">单独一行「---」= 翻页</span>
             </div>
+            <div class="chip-group" id="poemRow" role="group" aria-label="选一句藏头诗" hidden></div>
             <div class="field">
               <label for="fFrom">署名</label>
               <input type="text" id="fFrom" maxlength="16" placeholder="惦记你的人" autocomplete="off">
             </div>
 
-            <div class="sub-label">照片 <span class="sub-tip">可选，压到一张拍立得里随卡寄出</span></div>
+            <div class="sub-label">照片 <span class="sub-tip">可选，最多 6 张，轻触缩略图移除</span></div>
             <div class="music-block">
-              <input type="file" id="photoFile" accept="image/*" hidden>
-              <button class="btn btn-ghost btn-sm" id="photoUp" type="button">选一张照片</button>
-              <button class="btn btn-ghost btn-sm" id="photoDel" type="button" hidden>移除</button>
-              <img id="photoThumb" class="photo-thumb" alt="照片预览" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" hidden>
+              <input type="file" id="photoFile" accept="image/*" multiple hidden>
+              <button class="btn btn-ghost btn-sm" id="photoUp" type="button">添加照片</button>
+              <button class="btn btn-ghost btn-sm" id="photoTint" type="button" hidden title="从第一张照片提取颜色，套给强调色与背景色">照片取色</button>
+              <button class="btn btn-ghost btn-sm" id="photoDel" type="button" hidden>清空</button>
               <span class="music-meta" id="photoMeta">不放照片，纯净文字</span>
             </div>
+            <div class="photo-strip" id="photoStrip" hidden></div>
 
             <div class="sub-label">语音祝福 <span class="sub-tip">可选，录一段想说的话，点开贺卡即播</span></div>
             <div class="music-block">
@@ -138,6 +141,8 @@
               <h3>样式</h3>
               <p>主题一眼可辨，细节全部可调</p>
             </div>
+            <div class="sub-label">版式 <span class="sub-tip">电脑横屏版式在手机上打开会自动变回竖屏</span></div>
+            <div class="chip-group" id="layoutGroup" role="radiogroup" aria-label="版式"></div>
             <div class="sub-label">主题</div>
             <div class="theme-group" id="themeGroup" role="radiogroup" aria-label="主题"></div>
             <div class="sub-label">粒子效果</div>
@@ -157,9 +162,21 @@
             <div class="swatch-row" id="bgRow">
               <input type="color" id="bgCustom" class="sw-custom" value="#f8f7f3" title="自定义颜色">
             </div>
-            <div class="sub-label">彩蛋效果 <span class="sub-tip">收卡人打开时触发，全部可关闭</span></div>
+            <div class="sub-label rule">彩蛋效果 <span class="sub-tip">收卡人打开时触发，全部可关闭</span></div>
             <div class="chip-group" id="prankGroup" role="radiogroup" aria-label="彩蛋效果"></div>
-            <div class="sub-label">背景音乐 <span class="sub-tip">可选，用你自己的歌；页面本身无声</span></div>
+            <div class="sub-label rule">开场方式 <span class="sub-tip">把"打开这张卡"变成一个动作</span></div>
+            <div class="chip-group" id="openingGroup" role="radiogroup" aria-label="开场方式"></div>
+            <div class="sub-label">收尾互动 <span class="sub-tip">结尾让 TA 摇一下的那件小物</span></div>
+            <div class="chip-group" id="oracleGroup" role="radiogroup" aria-label="收尾互动"></div>
+            <div class="sub-label rule">细节开关</div>
+            <div class="switch-list" id="fxSwitchList">
+              <label class="sw-row"><span class="sw-text">触点粒子拖尾</span><input type="checkbox" id="swTrail"><span class="slider"></span></label>
+              <label class="sw-row"><span class="sw-text">标题流光烫金</span><input type="checkbox" id="swShine"><span class="slider"></span></label>
+              <label class="sw-row"><span class="sw-text">简笔涂鸦 <span class="sw-tip">标题上方一笔笔画出来</span></span><input type="checkbox" id="swDoodle"><span class="slider"></span></label>
+              <label class="sw-row"><span class="sw-text">随音乐律动 <span class="sw-tip">有音乐时底部频谱条</span></span><input type="checkbox" id="swSpectrum"><span class="slider"></span></label>
+              <label class="sw-row"><span class="sw-text">摇一摇彩带 <span class="sw-tip">收卡人摇手机触发，会请求传感器权限</span></span><input type="checkbox" id="swShake"><span class="slider"></span></label>
+            </div>
+            <div class="sub-label rule">背景音乐 <span class="sub-tip">可选，用你自己的歌；页面本身无声</span></div>
             <div class="music-block">
               <input type="file" id="musicFile" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" hidden>
               <button class="btn btn-ghost btn-sm" id="musicUp" type="button">上传音乐</button>
@@ -184,19 +201,45 @@
               <span class="music-meta" id="customMeta">未上传 · 使用内置贺卡版式</span>
             </div>
             <p class="tip" id="customTipText">
-              信笺里写 <b>{{收件人}}</b> <b>{{标题}}</b> <b>{{祝福语}}</b> <b>{{署名}}</b>，寄出时自动替换成「内容」页填写的文字；不写占位符则原样寄出。右侧手机预览即时呈现你的信笺。
+              信笺里写 <b>{{收件人}}</b> <b>{{标题}}</b> <b>{{祝福语}}</b> <b>{{署名}}</b>，寄出时自动替换成「内容」页填写的文字；不写占位符则原样寄出。预览窗即时呈现你的信笺。
             </p>
             <p class="tip" id="customLinkTip" hidden>
               这份信笺超过了链接的承载上限（260KB），「贺卡链接」暂不可用；请到「寄出」页用「贺卡文件」或「祝福邮件」，内容一分不少。
             </p>
+
+            <!-- 占位符示意：没上传信笺时，这页也有东西可看、可对照 -->
+            <div class="letter-demo" aria-hidden="true">
+              <span class="ld-tag">占位符 · 寄出时自动替换</span>
+              <div class="ld-paper">
+                <span class="ld-token">{{收件人}}</span>
+                <span class="ld-title">{{标题}}</span>
+                <span class="ld-token">{{祝福语}}</span>
+                <span class="ld-lines"><i></i><i></i><i></i></span>
+                <span class="ld-token">{{署名}}</span>
+              </div>
+              <span class="ld-note">在你自己的网页里写这几个标记，其余样式原样保留</span>
+            </div>
           </section>
 
-          <!-- 05 寄出：四种方式 -->
+          <!-- 05 寄出：七种方式 -->
           <section class="pane" data-pane="send" aria-label="寄出">
             <div class="pane-head">
               <h3>寄出</h3>
               <p>挑一种方式送给 TA</p>
             </div>
+
+            <div class="sub-label">寄出保护 <span class="sub-tip">可选：给这张卡加一道锁或一个开启时间</span></div>
+            <div class="field">
+              <label for="fPass">密语解锁 <span class="count" id="passState">未设置</span></label>
+              <input type="text" id="fPass" maxlength="32" placeholder="留空不加密；设了密语，对方要答对才能打开" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label for="fUnlock">定时开启 <span class="count" id="unlockState">不限时</span></label>
+              <input type="datetime-local" id="fUnlock">
+            </div>
+            <div class="sub-label">开启门槛 <span class="sub-tip">正式内容前加一道轻交互，跟密语、定时可叠加</span></div>
+            <div class="chip-group" id="gateGroup" role="radiogroup" aria-label="开启门槛"></div>
+            <p class="tip" id="guardTip">密语只在双方浏览器里加解密，不上传服务器；设了定时，到点前对方只看到倒计时。</p>
             <div class="send-grid">
               <div class="send-item">
                 <div class="send-name">贺卡链接</div>
@@ -230,6 +273,11 @@
                 <div class="send-desc">排好版的对折卡面，打印机打出来寄给 TA</div>
                 <button class="btn btn-ghost btn-sm" id="printBtn" type="button">打印卡面</button>
               </div>
+              <div class="send-item">
+                <div class="send-name">分享长图</div>
+                <div class="send-desc">卡面、祝福与二维码合成一张图，发朋友圈/群聊</div>
+                <button class="btn btn-ghost btn-sm" id="shareBtn" type="button">生成长图</button>
+              </div>
             </div>
 
             <div class="link-box" id="linkBox" hidden>
@@ -256,7 +304,7 @@
           <div class="preview-bar">
             <button class="btn btn-ghost btn-sm" id="replayPrevBtn" type="button">↻ 重播</button>
             <button class="btn btn-ghost btn-sm" id="popOutBtn" type="button">新窗打开</button>
-            <span class="preview-cap-inline">375 × 740 · 即时同步</span>
+            <span class="preview-cap-inline" id="previewCap">375 × 740 · 即时同步</span>
           </div>
           <div class="phone" id="phone">
             <div class="phone-notch" aria-hidden="true"></div>
@@ -277,6 +325,7 @@
   <script src="js/config.js"></script>
   <script src="js/effects.js"></script>
   <script src="js/themes.js"></script>
+  <script src="js/qr.js"></script>
   <script src="js/editor.js"></script>
 
   <!-- 实体贺卡打印排面：只在打印时显示 -->

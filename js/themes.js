@@ -118,6 +118,72 @@
         '--surface': '#1c1812'
       },
       palette: ['#e0a458', '#f2d9a0', '#c98d84', '#b58a4e', '#e8dcc2']
+    },
+    /* 霓虹：暗夜紫黑 + 荧光粉青（深色主题；专属样式见 style.css 的灯牌辉光） */
+    neon: {
+      label: '霓虹',
+      swatch: ['#ff6ea9', '#14121f'],
+      light: false,
+      vars: {
+        '--bg-0': '#14121f',
+        '--bg-1': '#100e1a',
+        '--bg-2': '#0b0913',
+        '--wash': 'rgba(255,110,169,.10)',
+        '--accent': '#ff6ea9',
+        '--accent-2': '#46e3ff',
+        '--grad-title': 'linear-gradient(180deg,#ffd9ec 0%,#ff9ccb 100%)',
+        '--ink': '#f0eaf6',
+        '--ink-soft': 'rgba(240,234,246,.76)',
+        '--ink-faint': 'rgba(240,234,246,.55)',
+        '--hairline': 'rgba(240,234,246,.14)',
+        '--hairline-strong': 'rgba(240,234,246,.3)',
+        '--surface': '#1c1930'
+      },
+      palette: ['#ff6ea9', '#46e3ff', '#ffd166', '#b388ff', '#f0eaf6']
+    },
+    /* 车票：牛皮纸暖黄 + 铁锈红（浅色主题；专属样式是票面打孔与虚线） */
+    ticket: {
+      label: '车票',
+      swatch: ['#b4632f', '#f5efe2'],
+      light: true,
+      vars: {
+        '--bg-0': '#f5efe2',
+        '--bg-1': '#efe7d5',
+        '--bg-2': '#e4d8bf',
+        '--wash': 'rgba(180,99,47,.12)',
+        '--accent': '#b4632f',
+        '--accent-2': '#54756c',
+        '--grad-title': 'linear-gradient(180deg,#4a3524 0%,#31220f 100%)',
+        '--ink': '#31281c',
+        '--ink-soft': 'rgba(49,40,28,.76)',
+        '--ink-faint': 'rgba(49,40,28,.55)',
+        '--hairline': 'rgba(49,40,28,.16)',
+        '--hairline-strong': 'rgba(49,40,28,.34)',
+        '--surface': '#fbf6ea'
+      },
+      palette: ['#b4632f', '#d29a6b', '#54756c', '#8a6f45', '#c9b99a']
+    },
+    /* 特刊：新闻纸白 + 印章红（浅色主题；专属样式是头版双线框与报头） */
+    paper: {
+      label: '特刊',
+      swatch: ['#b03a2e', '#f7f5ef'],
+      light: true,
+      vars: {
+        '--bg-0': '#f7f5ef',
+        '--bg-1': '#f1eee5',
+        '--bg-2': '#e6e2d4',
+        '--wash': 'rgba(176,58,46,.08)',
+        '--accent': '#b03a2e',
+        '--accent-2': '#232520',
+        '--grad-title': 'linear-gradient(180deg,#232520 0%,#111310 100%)',
+        '--ink': '#1d1f1a',
+        '--ink-soft': 'rgba(29,31,26,.78)',
+        '--ink-faint': 'rgba(29,31,26,.55)',
+        '--hairline': 'rgba(29,31,26,.18)',
+        '--hairline-strong': 'rgba(29,31,26,.4)',
+        '--surface': '#fffdf6'
+      },
+      palette: ['#b03a2e', '#232520', '#8a8676', '#c9a227', '#6a675c']
     }
   };
 
