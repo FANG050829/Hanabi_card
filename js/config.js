@@ -1,7 +1,7 @@
 /* ============================================================
  * 花火贺卡 · config.js
  * 配置的默认值、白名单校验、灵感模板、base64url 编解码。
- * 无后端：整张贺卡的配置 JSON 被编码进 card.html 链接的 #hash，
+ * 无后端：贺卡配置（只带与默认值不同的字段）被编码进 card.html 链接的 #hash，
  * 谁打开链接，谁的浏览器里就地解析播放。
  * 本文件同时被 index.html（编辑器）与 card.html（播放器）加载。
  * ============================================================ */
@@ -410,6 +410,21 @@
 
   function defaults() { return sanitize({}); }
 
+  /* ---------- 紧凑编码：链接里只带与默认值不同的字段 ----------
+   * 28 个字段里大多只是默认值，全量编码白占链接长度（纯文本卡能长出几百字符）。
+   * 播放端 sanitize 先填默认值再覆盖，所以只发差异即可完整还原；
+   * 旧的全量 JSON 链接（无前缀）照旧解析，两种格式都能播。
+   * c1. 的 '.' 不属于 base64url 字符集，与旧链接、k1. 加密链接天然可区分。 */
+  var COMPACT_PREFIX = 'c1.';
+  function compactOf(cfg) {
+    var out = {};
+    for (var k in DEFAULTS) {
+      if (typeof cfg[k] === 'undefined') continue;
+      if (JSON.stringify(cfg[k]) !== JSON.stringify(DEFAULTS[k])) out[k] = cfg[k];
+    }
+    return out;
+  }
+
   /* ---------- base64url 编解码（UTF-8 安全，可直接放进 URL 的 #hash） ---------- */
   function encode(cfg) {
     var json = JSON.stringify(cfg);
@@ -433,13 +448,14 @@
     try {
       var code = (hash || '').replace(/^#/, '');
       if (!code) return defaults();
+      if (code.indexOf(COMPACT_PREFIX) === 0) code = code.slice(COMPACT_PREFIX.length);
       return sanitize(decode(code));
     } catch (e) {
       return defaults();
     }
   }
 
-  function toHash(cfg) { return encode(sanitize(cfg)); }
+  function toHash(cfg) { return COMPACT_PREFIX + encode(compactOf(sanitize(cfg))); }
 
   /* ---------- 密语解锁：配置整包 AES-GCM 加密进链接 ----------
    * hash 形如 k1.<salt>.<iv>.<密文>（各段均为 base64url）。
@@ -480,7 +496,7 @@
     if (!pass) return Promise.reject(new Error('密语为空'));
     var salt = crypto.getRandomValues(new Uint8Array(16));
     var iv = crypto.getRandomValues(new Uint8Array(12));
-    var plain = new TextEncoder().encode(JSON.stringify(sanitize(cfg)));
+    var plain = new TextEncoder().encode(JSON.stringify(compactOf(sanitize(cfg))));
     return deriveLockKey(pass, salt, ['encrypt']).then(function (key) {
       return api.encrypt({ name: 'AES-GCM', iv: iv }, key, plain);
     }).then(function (ct) {
